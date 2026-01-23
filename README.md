@@ -252,3 +252,19 @@ MIT
 <div align="center">
 <sub>Built for inspecting what AI coding agents actually did.</sub>
 </div>
+
+```
+
+@misc{clicodelog2026,
+  title = {clicodelog: Browse, inspect CLI-based AI coding agents},
+  author = {Pal, Ankit},
+  year = {2026},
+  howpublished = {\url{https://github.com/monk1337/clicodelog}},
+  note = {A lightweight, local-first web app to browse, inspect, and export logs from CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.}
+}
+
+```
+
+## 💁 Contributing
+
+Welcome any contributions to open source project, including new features, improvements to infrastructure, and more comprehensive documentation. 

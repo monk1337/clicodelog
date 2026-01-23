@@ -938,6 +938,20 @@ def api_status():
     })
 
 
+def find_available_port(host, start_port, max_attempts=100):
+    """Find an available port starting from start_port."""
+    import socket
+
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((host, port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts}")
+
+
 def run_server(host="127.0.0.1", port=5050, skip_sync=False, debug=False):
     """Run the Flask server."""
     from clicodelog import __version__
@@ -967,10 +981,15 @@ def run_server(host="127.0.0.1", port=5050, skip_sync=False, debug=False):
     else:
         print("\nSkipping initial sync (--no-sync flag)")
 
+    # Find available port
+    actual_port = find_available_port(host, port)
+    if actual_port != port:
+        print(f"\nPort {port} is busy, using port {actual_port} instead")
+
     print(f"\nStarting server...")
-    print(f"Open http://{host}:{port} in your browser")
+    print(f"Open http://{host}:{actual_port} in your browser")
     print("=" * 60)
-    app.run(host=host, port=port, debug=debug, use_reloader=False)
+    app.run(host=host, port=actual_port, debug=debug, use_reloader=False)
 
 
 if __name__ == '__main__':

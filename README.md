@@ -1,6 +1,6 @@
 <div align="center">
   <div align="center">
-<img width="210px" src="https://raw.githubusercontent.com/monk1337/clicodelog/refs/heads/main/screenshots/logo.png">
+<img width="240px" src="https://raw.githubusercontent.com/monk1337/clicodelog/refs/heads/main/screenshots/logo.png">
 </div>
 
 <p>

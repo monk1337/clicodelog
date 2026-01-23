@@ -71,16 +71,31 @@ CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
 
 ## Installation
 
+### Via pip (Recommended)
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/cli-code-log.git
-cd cli-code-log
+pip install clicodelog
+```
+
+### From source
+
+```bash
+git clone https://github.com/monk1337/clicodelog.git
+cd clicodelog
+pip install -e .
 ```
 
 ---
 
 ## Usage
 
-One command to run:
+If installed via pip:
+
+```bash
+clicodelog
+```
+
+Or run directly from source:
 
 ```bash
 ./run.sh
@@ -94,6 +109,16 @@ python app.py
 ```
 
 Open http://localhost:5050 in your browser.
+
+### CLI Options
+
+```
+clicodelog --help
+clicodelog --port 8080        # Run on custom port
+clicodelog --host 0.0.0.0     # Bind to all interfaces
+clicodelog --no-sync          # Skip initial data sync
+clicodelog --debug            # Run in debug mode
+```
 
 ---
 
@@ -153,7 +178,7 @@ data/
 ## Project Structure
 
 ```
-cli-code-log/
+clicodelog/
 ├── app.py              # Flask backend (multi-source support)
 ├── run.sh              # Run script
 ├── requirements.txt    # Dependencies

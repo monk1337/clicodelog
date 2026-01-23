@@ -25,3 +25,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Build/Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/

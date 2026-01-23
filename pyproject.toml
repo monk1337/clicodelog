@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clicodelog"
+version = "0.1.0"
+description = "A lightweight, local-first web app to browse, inspect, and export logs from CLI-based AI coding agents"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.7"
+authors = [
+    {name = "monk1337"}
+]
+keywords = [
+    "claude",
+    "claude-code",
+    "openai",
+    "codex",
+    "gemini",
+    "gemini-cli",
+    "ai",
+    "log",
+    "viewer",
+    "cli"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "flask>=2.0",
+    "flask-cors>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/monk1337/clicodelog"
+Repository = "https://github.com/monk1337/clicodelog"
+Issues = "https://github.com/monk1337/clicodelog/issues"
+
+[project.scripts]
+clicodelog = "clicodelog.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["clicodelog*"]
+
+[tool.setuptools.package-data]
+clicodelog = ["templates/*.html"]

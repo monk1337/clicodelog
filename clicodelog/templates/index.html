@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Conversation History</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Dark Theme (Default) */
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-purple: #a371f7;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --user-bg: #1f6feb22;
+            --assistant-bg: #238636;
+            --thinking-bg: #a371f722;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Light Theme - Soft Blue */
+        [data-theme="light"] {
+            --bg-primary: #f0f6fc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e8f1fb;
+            --border-color: #c8d8e8;
+            --text-primary: #1a3a5c;
+            --text-secondary: #4a6a8a;
+            --text-muted: #6b8aaa;
+            --accent-blue: #2563eb;
+            --accent-purple: #7c3aed;
+            --accent-green: #16a34a;
+            --accent-orange: #d97706;
+            --user-bg: #dbeafe;
+            --assistant-bg: #16a34a;
+            --thinking-bg: #ede9fe;
+            --shadow-color: rgba(37, 99, 235, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 280px 320px 1fr;
+            height: 100vh;
+        }
+
+        .panel {
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .panel-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .search-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .list-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .list-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .list-item.active {
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .list-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .list-item-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .conversation-panel {
+            border-right: none;
+            background: var(--bg-primary);
+        }
+
+        .conversation-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        .conversation-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .conversation-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .messages {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .message {
+            max-width: 100%;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .message-role {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .message.user .message-role {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .message.assistant .message-role {
+            background: var(--accent-purple);
+            color: white;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .message-content {
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: var(--user-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .message.assistant .message-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .thinking-block {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--thinking-bg);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .thinking-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-purple);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .thinking-header::before {
+            content: '▶';
+            font-size: 8px;
+            transition: transform 0.2s;
+        }
+
+        .thinking-block.expanded .thinking-header::before {
+            transform: rotate(90deg);
+        }
+
+        .thinking-content {
+            display: none;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .thinking-block.expanded .thinking-content {
+            display: block;
+        }
+
+        .tool-uses {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tool-use {
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-orange);
+        }
+
+        .tool-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-orange);
+            margin-bottom: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tool-input {
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .summaries {
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .summary-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--accent-green);
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            margin: 2px;
+        }
+
+        .model-badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .usage-info {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+
+        /* Top Controls */
+        .top-controls {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .control-btn:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+
+        .control-btn .icon {
+            font-size: 16px;
+        }
+
+        .control-btn.syncing .icon {
+            animation: spin 1s linear infinite;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-btn:disabled:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-color);
+            transform: none;
+        }
+
+        .sync-status {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+
+
+        /* Light theme specific adjustments */
+        [data-theme="light"] .message.user .message-content {
+            background: var(--user-bg);
+            border: 1px solid #bfdbfe;
+        }
+
+        [data-theme="light"] .message.assistant .message-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+
+        [data-theme="light"] .thinking-block {
+            background: var(--thinking-bg);
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        [data-theme="light"] .tool-use {
+            background: #fef3c7;
+            border-left: 3px solid var(--accent-orange);
+        }
+
+        [data-theme="light"] .search-box input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        [data-theme="light"] .search-box input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        [data-theme="light"] .list-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        [data-theme="light"] .list-item.active {
+            background: #dbeafe;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        [data-theme="light"] .panel-header {
+            background: var(--bg-secondary);
+            box-shadow: 0 1px 2px var(--shadow-color);
+        }
+
+        [data-theme="light"] .conversation-header {
+            background: var(--bg-secondary);
+            box-shadow: 0 1px 2px var(--shadow-color);
+        }
+
+        [data-theme="light"] code {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        [data-theme="light"] pre {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+        }
+
+        [data-theme="light"] .model-badge {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        [data-theme="light"] .summaries {
+            background: #ecfdf5;
+            border-bottom: 1px solid #a7f3d0;
+        }
+
+        [data-theme="light"] .summary-tag {
+            background: var(--accent-green);
+        }
+
+        /* Source Selector Styles */
+        .source-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 6px 12px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .source-selector label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .source-selector select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 4px 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .source-selector select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .source-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+
+        .source-indicator.unavailable {
+            background: var(--text-muted);
+        }
+
+        [data-theme="light"] .source-selector select {
+            background: var(--bg-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Controls -->
+    <div class="top-controls">
+        <div class="source-selector">
+            <label>Source:</label>
+            <select id="source-select" onchange="changeSource(this.value)">
+                <option value="claude-code">Claude Code</option>
+                <option value="codex">OpenAI Codex</option>
+                <option value="gemini">Google Gemini</option>
+            </select>
+        </div>
+        <span class="sync-status" id="sync-status" title="Last sync time">Syncing...</span>
+        <button class="control-btn" id="export-btn" onclick="exportConversation()" title="Export conversation as TXT" disabled>
+            <span class="icon">📥</span>
+            <span>Export</span>
+        </button>
+        <button class="control-btn" id="sync-btn" onclick="manualSync()" title="Sync data now">
+            <span class="icon">🔄</span>
+            <span>Sync</span>
+        </button>
+        <button class="control-btn" onclick="toggleTheme()" title="Toggle theme">
+            <span class="icon" id="theme-icon">🌙</span>
+            <span id="theme-label">Dark</span>
+        </button>
+    </div>
+
+    <div class="app">
+        <!-- Projects Panel -->
+        <div class="panel" id="projects-panel">
+            <div class="panel-header">
+                <h2>Projects</h2>
+            </div>
+            <div class="search-box">
+                <input type="text" id="project-search" placeholder="Search projects...">
+            </div>
+            <div class="panel-content" id="projects-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading projects...
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions Panel -->
+        <div class="panel" id="sessions-panel">
+            <div class="panel-header">
+                <h2>Sessions</h2>
+            </div>
+            <div class="panel-content" id="sessions-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📁</div>
+                    <p>Select a project to view sessions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conversation Panel -->
+        <div class="panel conversation-panel" id="conversation-panel">
+            <div id="conversation-content">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <h3>AI Conversation History</h3>
+                    <p>Select a session to view the conversation</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProjectId = null;
+        let currentSessionId = null;
+        let currentSource = 'claude-code';
+        let projects = [];
+        let availableSources = [];
+
+        // Theme Management
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            // Default to light theme as requested
+            return 'light';
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateThemeToggle(theme);
+        }
+
+        function updateThemeToggle(theme) {
+            const icon = document.getElementById('theme-icon');
+            const label = document.getElementById('theme-label');
+            if (theme === 'light') {
+                icon.textContent = '☀️';
+                label.textContent = 'Light';
+            } else {
+                icon.textContent = '🌙';
+                label.textContent = 'Dark';
+            }
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = current === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+        }
+
+        // Initialize theme on page load
+        (function() {
+            const theme = getPreferredTheme();
+            setTheme(theme);
+        })();
+
+        // Source Management
+        async function loadSources() {
+            try {
+                const response = await fetch('/api/sources');
+                const data = await response.json();
+                availableSources = data.sources;
+                currentSource = data.current;
+
+                const select = document.getElementById('source-select');
+                select.innerHTML = availableSources.map(source => `
+                    <option value="${source.id}" ${source.id === currentSource ? 'selected' : ''} ${!source.available ? 'disabled' : ''}>
+                        ${source.name}${!source.available ? ' (not found)' : ''}
+                    </option>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading sources:', error);
+            }
+        }
+
+        async function changeSource(sourceId) {
+            if (sourceId === currentSource) return;
+
+            currentSource = sourceId;
+            currentProjectId = null;
+            currentSessionId = null;
+
+            // Update UI
+            document.getElementById('export-btn').disabled = true;
+
+            // Reset panels
+            document.getElementById('sessions-list').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📁</div>
+                    <p>Select a project to view sessions</p>
+                </div>
+            `;
+            document.getElementById('conversation-content').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <h3>AI Conversation History</h3>
+                    <p>Select a session to view the conversation</p>
+                </div>
+            `;
+
+            // Load projects for new source
+            await loadProjects();
+            await fetchSyncStatus();
+        }
+
+        // Sync Management
+        async function fetchSyncStatus() {
+            try {
+                const response = await fetch(`/api/status?source=${currentSource}`);
+                const data = await response.json();
+                updateSyncStatus(data.last_sync);
+            } catch (error) {
+                console.error('Error fetching sync status:', error);
+                document.getElementById('sync-status').textContent = 'Status unavailable';
+            }
+        }
+
+        function updateSyncStatus(lastSync) {
+            const statusEl = document.getElementById('sync-status');
+            if (lastSync) {
+                const date = new Date(lastSync);
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                statusEl.textContent = `Last sync: ${timeStr}`;
+                statusEl.title = `Last sync: ${date.toLocaleString()}`;
+            } else {
+                statusEl.textContent = 'Not synced';
+            }
+        }
+
+        async function manualSync() {
+            const btn = document.getElementById('sync-btn');
+            const statusEl = document.getElementById('sync-status');
+
+            btn.classList.add('syncing');
+            btn.disabled = true;
+            statusEl.textContent = 'Syncing...';
+
+            try {
+                const response = await fetch(`/api/sync?source=${currentSource}`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    updateSyncStatus(data.last_sync);
+                    // Reload projects to show any new data
+                    await loadProjects();
+                } else {
+                    statusEl.textContent = 'Sync failed';
+                }
+            } catch (error) {
+                console.error('Error syncing:', error);
+                statusEl.textContent = 'Sync error';
+            } finally {
+                btn.classList.remove('syncing');
+                btn.disabled = false;
+            }
+        }
+
+        // Fetch sync status on load and periodically
+        fetchSyncStatus();
+        setInterval(fetchSyncStatus, 60000); // Update status every minute
+
+        // Export conversation as text file
+        function exportConversation() {
+            if (!currentProjectId || !currentSessionId) return;
+
+            const url = `/api/projects/${currentProjectId}/sessions/${currentSessionId}/export?source=${currentSource}`;
+
+            // Create a temporary link and trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${currentSessionId}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Format timestamp
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        // Format file size
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Format tool input
+        function formatToolInput(input) {
+            if (typeof input === 'string') return escapeHtml(input);
+            try {
+                return escapeHtml(JSON.stringify(input, null, 2));
+            } catch {
+                return escapeHtml(String(input));
+            }
+        }
+
+        // Load projects
+        async function loadProjects() {
+            try {
+                const response = await fetch(`/api/projects?source=${currentSource}`);
+                projects = await response.json();
+                renderProjects(projects);
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                document.getElementById('projects-list').innerHTML = `
+                    <div class="empty-state">
+                        <p>Error loading projects</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render projects list
+        function renderProjects(projectsList) {
+            const container = document.getElementById('projects-list');
+            if (projectsList.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No projects found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = projectsList.map(project => `
+                <div class="list-item ${project.id === currentProjectId ? 'active' : ''}"
+                     onclick="selectProject('${project.id}')">
+                    <div class="list-item-title">${escapeHtml(project.name)}</div>
+                    <div class="list-item-meta">${project.session_count} sessions</div>
+                </div>
+            `).join('');
+        }
+
+        // Select project
+        async function selectProject(projectId) {
+            currentProjectId = projectId;
+            currentSessionId = null;
+            renderProjects(projects);
+
+            // Disable export button when switching projects
+            document.getElementById('export-btn').disabled = true;
+
+            const sessionsContainer = document.getElementById('sessions-list');
+            sessionsContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading sessions...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/projects/${projectId}/sessions?source=${currentSource}`);
+                const sessions = await response.json();
+                renderSessions(sessions);
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                sessionsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>Error loading sessions</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render sessions list
+        function renderSessions(sessions) {
+            const container = document.getElementById('sessions-list');
+            if (sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No sessions found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = sessions.map(session => `
+                <div class="list-item ${session.id === currentSessionId ? 'active' : ''}"
+                     onclick="selectSession('${session.id}')">
+                    <div class="list-item-title">${escapeHtml(session.summary)}</div>
+                    <div class="list-item-meta">
+                        ${session.message_count} messages &bull; ${formatSize(session.size)}
+                        <br>${formatTime(session.last_timestamp)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Select session
+        async function selectSession(sessionId) {
+            currentSessionId = sessionId;
+            // Re-render sessions to update active state
+            const sessionsResponse = await fetch(`/api/projects/${currentProjectId}/sessions?source=${currentSource}`);
+            const sessions = await sessionsResponse.json();
+            renderSessions(sessions);
+
+            const conversationContainer = document.getElementById('conversation-content');
+            conversationContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading conversation...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/projects/${currentProjectId}/sessions/${sessionId}?source=${currentSource}`);
+                const conversation = await response.json();
+                renderConversation(conversation);
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+                conversationContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>Error loading conversation</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render conversation
+        function renderConversation(conversation) {
+            const container = document.getElementById('conversation-content');
+
+            let summariesHtml = '';
+            if (conversation.summaries && conversation.summaries.length > 0) {
+                summariesHtml = `
+                    <div class="summaries">
+                        <strong>Summaries:</strong><br>
+                        ${conversation.summaries.map(s => `<span class="summary-tag">${escapeHtml(s)}</span>`).join('')}
+                    </div>
+                `;
+            }
+
+            const messagesHtml = conversation.messages.map(msg => {
+                let thinkingHtml = '';
+                if (msg.thinking) {
+                    thinkingHtml = `
+                        <div class="thinking-block" onclick="this.classList.toggle('expanded')">
+                            <div class="thinking-header">Thinking</div>
+                            <div class="thinking-content">${escapeHtml(msg.thinking)}</div>
+                        </div>
+                    `;
+                }
+
+                let toolUsesHtml = '';
+                if (msg.tool_uses && msg.tool_uses.length > 0) {
+                    toolUsesHtml = `
+                        <div class="tool-uses">
+                            ${msg.tool_uses.map(tool => `
+                                <div class="tool-use">
+                                    <div class="tool-name">${escapeHtml(tool.name)}</div>
+                                    <div class="tool-input">${formatToolInput(tool.input)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                let usageHtml = '';
+                if (msg.usage) {
+                    const tokens = msg.usage.input_tokens + (msg.usage.output_tokens || 0);
+                    usageHtml = `<span class="usage-info">${tokens.toLocaleString()} tokens</span>`;
+                }
+
+                let modelHtml = '';
+                if (msg.model) {
+                    modelHtml = `<span class="model-badge">${msg.model}</span>`;
+                }
+
+                return `
+                    <div class="message ${msg.role}">
+                        <div class="message-header">
+                            <span class="message-role">${msg.role}</span>
+                            ${modelHtml}
+                            <span class="message-time">${formatTime(msg.timestamp)}</span>
+                            ${usageHtml}
+                        </div>
+                        <div class="message-content">${escapeHtml(msg.content)}</div>
+                        ${thinkingHtml}
+                        ${toolUsesHtml}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="conversation-header">
+                    <h1>Session: ${conversation.session_id}</h1>
+                    <div class="conversation-meta">
+                        <span>${conversation.messages.length} messages</span>
+                    </div>
+                </div>
+                ${summariesHtml}
+                <div class="messages">
+                    ${messagesHtml}
+                </div>
+            `;
+
+            // Enable export button
+            document.getElementById('export-btn').disabled = false;
+        }
+
+        // Search projects
+        document.getElementById('project-search').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = projects.filter(p =>
+                p.name.toLowerCase().includes(query)
+            );
+            renderProjects(filtered);
+        });
+
+        // Initialize
+        async function init() {
+            await loadSources();
+            await loadProjects();
+        }
+        init();
+    </script>
+</body>
+</html>

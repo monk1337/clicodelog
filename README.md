@@ -108,7 +108,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open http://localhost:5050 in your browser.
+Open http://localhost:5050 in your browser, or another port if it's busy.
 
 ### CLI Options
 

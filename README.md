@@ -30,15 +30,15 @@ CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
 <table>
 <tr>
 <td align="center">
-<img src="screenshots/claude.png" width="280" alt="Claude Code"><br>
+<img src="screenshots/claude.png" width="80" alt="Claude Code"><br>
 <sub><b>Claude Code</b></sub>
 </td>
 <td align="center">
-<img src="screenshots/codex.png" width="280" alt="OpenAI Codex"><br>
+<img src="screenshots/codex.png" width="80" alt="OpenAI Codex"><br>
 <sub><b>OpenAI Codex</b></sub>
 </td>
 <td align="center">
-<img src="screenshots/gemini.png" width="280" alt="Gemini CLI"><br>
+<img src="screenshots/gemini.png" width="80" alt="Gemini CLI"><br>
 <sub><b>Gemini CLI</b></sub>
 </td>
 </tr>

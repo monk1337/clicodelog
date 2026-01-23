@@ -1,5 +1,8 @@
 <div align="center">
-<h1>cli code log</h1>
+  <div align="center">
+<img width="210px" src="https://raw.githubusercontent.com/monk1337/clicodelog/refs/heads/main/screenshots/logo.png">
+</div>
+
 <p>
 A lightweight, local-first web app to browse, inspect, and export logs from
 CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
@@ -23,7 +26,7 @@ CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
 </p>
 </div>
 
-![Gemini CLI Screenshot](screenshots/dark.png)
+
 
 ---
 

@@ -18,7 +18,7 @@ CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
 
 <p>
   <img src="https://img.shields.io/badge/Python-3.7+-blue.svg" alt="Python 3.7+" />
-  <img src="https://img.shields.io/badge/Flask-2.0+-green.svg" alt="Flask" />
+  <img src="https://img.shields.io/badge/FastAPI-0.104+-00c7b7.svg" alt="FastAPI" />
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License MIT" />
   <a href="http://makeapullrequest.com">
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome" />

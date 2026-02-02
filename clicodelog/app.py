@@ -16,8 +16,14 @@ import time
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, render_template, jsonify, request
-from flask_cors import CORS
+from typing import Optional
+
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 
 # Package directory for templates
 PACKAGE_DIR = Path(__file__).parent
@@ -718,18 +724,29 @@ def parse_gemini_conversation(session_file, session_id):
     }
 
 
-# Create Flask app
-app = Flask(__name__, template_folder=str(PACKAGE_DIR / "templates"))
-CORS(app)
+# Create FastAPI app
+app = FastAPI(title="CLI Code Log", version="0.2.0")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Templates
+templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.route('/api/sources')
-def api_sources():
+@app.get("/api/sources")
+async def api_sources():
     """Get available sources."""
     sources = []
     for source_id, config in SOURCES.items():
@@ -738,55 +755,55 @@ def api_sources():
             "name": config["name"],
             "available": config["source_dir"].exists()
         })
-    return jsonify({
+    return {
         "sources": sources,
         "current": current_source
-    })
+    }
 
 
-@app.route('/api/sources/<source_id>', methods=['POST'])
-def api_set_source(source_id):
+@app.post("/api/sources/{source_id}")
+async def api_set_source(source_id: str):
     """Set the current source."""
     global current_source
     if source_id not in SOURCES:
-        return jsonify({"error": "Unknown source"}), 400
+        return JSONResponse({"error": "Unknown source"}, status_code=400)
     current_source = source_id
-    return jsonify({"status": "success", "current": current_source})
+    return {"status": "success", "current": current_source}
 
 
-@app.route('/api/projects')
-def api_projects():
-    source_id = request.args.get('source', current_source)
-    return jsonify(get_projects(source_id))
+@app.get("/api/projects")
+async def api_projects(source: Optional[str] = None):
+    source_id = source or current_source
+    return get_projects(source_id)
 
 
-@app.route('/api/projects/<project_id>/sessions')
-def api_sessions(project_id):
-    source_id = request.args.get('source', current_source)
-    return jsonify(get_sessions(project_id, source_id))
+@app.get("/api/projects/{project_id}/sessions")
+async def api_sessions(project_id: str, source: Optional[str] = None):
+    source_id = source or current_source
+    return get_sessions(project_id, source_id)
 
 
-@app.route('/api/projects/<project_id>/sessions/<session_id>')
-def api_conversation(project_id, session_id):
-    source_id = request.args.get('source', current_source)
-    return jsonify(get_conversation(project_id, session_id, source_id))
+@app.get("/api/projects/{project_id}/sessions/{session_id}")
+async def api_conversation(project_id: str, session_id: str, source: Optional[str] = None):
+    source_id = source or current_source
+    return get_conversation(project_id, session_id, source_id)
 
 
-@app.route('/api/search')
-def api_search():
+@app.get("/api/search")
+async def api_search(q: Optional[str] = None, source: Optional[str] = None):
     """Search across all conversations."""
-    query = request.args.get('q', '').lower()
-    source_id = request.args.get('source', current_source)
+    query = (q or '').lower()
+    source_id = source or current_source
 
     if not query:
-        return jsonify([])
+        return []
 
     if source_id not in SOURCES:
-        return jsonify([])
+        return []
 
     data_dir = DATA_DIR / SOURCES[source_id]["data_subdir"]
     if not data_dir.exists():
-        return jsonify([])
+        return []
 
     results = []
 
@@ -839,17 +856,17 @@ def api_search():
             except Exception:
                 continue
 
-    return jsonify(results[:50])  # Limit results
+    return results[:50]  # Limit results
 
 
-@app.route('/api/projects/<project_id>/sessions/<session_id>/export')
-def api_export(project_id, session_id):
+@app.get("/api/projects/{project_id}/sessions/{session_id}/export")
+async def api_export(project_id: str, session_id: str, source: Optional[str] = None):
     """Export conversation as text file."""
-    source_id = request.args.get('source', current_source)
+    source_id = source or current_source
     conversation = get_conversation(project_id, session_id, source_id)
 
     if "error" in conversation:
-        return jsonify(conversation), 404
+        return JSONResponse(conversation, status_code=404)
 
     # Build text content
     lines = []
@@ -913,42 +930,41 @@ def api_export(project_id, session_id):
 
     text_content = "\n".join(lines)
 
-    from flask import Response
     return Response(
-        text_content,
-        mimetype="text/plain",
+        content=text_content,
+        media_type="text/plain",
         headers={"Content-Disposition": f"attachment; filename={session_id}.txt"}
     )
 
 
-@app.route('/api/sync', methods=['POST'])
-def api_sync():
+@app.post("/api/sync")
+async def api_sync(source: Optional[str] = None):
     """Manually trigger a data sync."""
-    source_id = request.args.get('source', current_source)
+    source_id = source or current_source
     try:
         sync_data(source_id=source_id, silent=True)
-        return jsonify({
+        return {
             "status": "success",
             "source": source_id,
             "last_sync": last_sync_time.get(source_id).isoformat() if last_sync_time.get(source_id) else None
-        })
+        }
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-@app.route('/api/status')
-def api_status():
+@app.get("/api/status")
+async def api_status(source: Optional[str] = None):
     """Get sync status."""
-    source_id = request.args.get('source', current_source)
+    source_id = source or current_source
     source_config = SOURCES.get(source_id, {})
     data_dir = DATA_DIR / source_config.get("data_subdir", "")
 
-    return jsonify({
+    return {
         "source": source_id,
         "last_sync": last_sync_time.get(source_id).isoformat() if last_sync_time.get(source_id) else None,
         "sync_interval_hours": SYNC_INTERVAL / 3600,
         "data_dir": str(data_dir)
-    })
+    }
 
 
 def kill_process_on_port(port, max_retries=3):
@@ -999,7 +1015,7 @@ def kill_process_on_port(port, max_retries=3):
 
 
 def run_server(host="127.0.0.1", port=6126, skip_sync=False, debug=False):
-    """Run the Flask development server."""
+    """Run the FastAPI server with uvicorn."""
     print("=" * 60)
     print("CLI Code Log - AI Conversation History Viewer")
     print("=" * 60)
@@ -1047,7 +1063,7 @@ def run_server(host="127.0.0.1", port=6126, skip_sync=False, debug=False):
     browser_thread = threading.Thread(target=open_browser, daemon=True)
     browser_thread.start()
     
-    app.run(host=host, port=port, debug=debug, use_reloader=False)
+    uvicorn.run(app, host=host, port=port, log_level="warning" if not debug else "info")
 
 
 if __name__ == '__main__':

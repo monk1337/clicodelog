@@ -1,20 +1,21 @@
+#!/usr/bin/env python3
 """
-cli code log
-A web app to browse, inspect, and export logs from CLI-based AI coding agents.
-Data is copied from source directories to ~/.clicodelog/data/ for backup and local use.
+AI Conversation History Viewer
+A web app to browse and view Claude Code, OpenAI Codex, and Google Gemini conversation history.
+Data is copied from source directories to ./data/ for backup and local use.
 Background sync runs every hour to keep data updated.
 """
 
-import base64
 import json
 import os
 import shutil
+import signal
+import subprocess
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
-
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 
 # Package directory for templates
@@ -51,13 +52,9 @@ sync_lock = threading.Lock()
 last_sync_time = {}  # Track per-source sync times
 current_source = "claude-code"  # Default source
 
-# Create Flask app with template folder from package
-app = Flask(__name__, template_folder=str(PACKAGE_DIR / "templates"))
-CORS(app)
-
 
 def sync_data(source_id=None, silent=False):
-    """Copy data from source directory to data dir for backup."""
+    """Copy data from source directory to ./data/{source}/ for backup."""
     global last_sync_time
 
     if source_id is None:
@@ -79,7 +76,7 @@ def sync_data(source_id=None, silent=False):
             return False
 
         # Create data directory if it doesn't exist
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        DATA_DIR.mkdir(exist_ok=True)
 
         # Copy source directory
         if not silent:
@@ -156,11 +153,13 @@ def background_sync():
 
 def encode_path_id(path):
     """Encode a path as a safe ID using base64."""
+    import base64
     return base64.urlsafe_b64encode(path.encode()).decode().rstrip('=')
 
 
 def decode_path_id(encoded_id):
     """Decode a base64-encoded path ID."""
+    import base64
     # Add back padding if needed
     padding = 4 - len(encoded_id) % 4
     if padding != 4:
@@ -577,11 +576,18 @@ def parse_codex_conversation(session_file, session_id):
 
                     elif payload_type == "reasoning":
                         # Reasoning/thinking block
-                        summary_parts = payload.get("summary", [])
                         thinking_text = ""
-                        for part in summary_parts:
-                            if isinstance(part, dict) and part.get("type") == "summary_text":
-                                thinking_text += part.get("text", "") + "\n"
+                        
+                        # Check if content is encrypted
+                        if payload.get("encrypted_content"):
+                            thinking_text = "[Reasoning content is encrypted and cannot be displayed]\n\nOpenAI Codex encrypts extended thinking for privacy. The model used reasoning here, but the content is not accessible in the logs."
+                        else:
+                            # Try to extract from summary (unencrypted format)
+                            summary_parts = payload.get("summary", [])
+                            for part in summary_parts:
+                                if isinstance(part, dict) and part.get("type") == "summary_text":
+                                    thinking_text += part.get("text", "") + "\n"
+                        
                         if thinking_text:
                             messages.append({
                                 "role": "assistant",
@@ -709,6 +715,11 @@ def parse_gemini_conversation(session_file, session_id):
         "session_id": session_id,
         "meta": session_meta
     }
+
+
+# Create Flask app
+app = Flask(__name__, template_folder=str(PACKAGE_DIR / "templates"))
+CORS(app)
 
 
 @app.route('/')
@@ -851,7 +862,7 @@ def api_export(project_id, session_id):
     if conversation.get("summaries"):
         lines.append("SUMMARIES:")
         for s in conversation["summaries"]:
-            lines.append(f"  * {s}")
+            lines.append(f"  • {s}")
         lines.append("")
         lines.append("-" * 60)
         lines.append("")
@@ -901,6 +912,7 @@ def api_export(project_id, session_id):
 
     text_content = "\n".join(lines)
 
+    from flask import Response
     return Response(
         text_content,
         mimetype="text/plain",
@@ -938,27 +950,42 @@ def api_status():
     })
 
 
-def find_available_port(host, start_port, max_attempts=100):
-    """Find an available port starting from start_port."""
-    import socket
+def kill_process_on_port(port):
+    """Kill any process running on the specified port."""
+    try:
+        # Find process ID on the port
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pid = result.stdout.strip()
+            print(f"⚠️  Port {port} is in use by process {pid}")
+            print(f"🔄 Killing process {pid}...")
+            try:
+                os.kill(int(pid), signal.SIGTERM)
+                time.sleep(0.5)  # Give it a moment to terminate
+                print(f"✓ Process killed successfully")
+            except ProcessLookupError:
+                pass  # Process already gone
+            except Exception as e:
+                print(f"Warning: Could not kill process: {e}")
+    except FileNotFoundError:
+        # lsof not available (not on Unix-like system)
+        pass
+    except Exception as e:
+        print(f"Warning: Could not check port: {e}")
 
-    for port in range(start_port, start_port + max_attempts):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind((host, port))
-                return port
-        except OSError:
-            continue
-    raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts}")
 
-
-def run_server(host="127.0.0.1", port=5050, skip_sync=False, debug=False):
-    """Run the Flask server."""
-    from clicodelog import __version__
-
+def run_server(host="127.0.0.1", port=6126, skip_sync=False, debug=False):
+    """Run the Flask development server."""
     print("=" * 60)
-    print(f"cli code log v{__version__}")
+    print("CLI Code Log - AI Conversation History Viewer")
     print("=" * 60)
+    
+    # Kill any process on the port
+    kill_process_on_port(port)
 
     if not skip_sync:
         # Sync data from all sources
@@ -969,28 +996,24 @@ def run_server(host="127.0.0.1", port=5050, skip_sync=False, debug=False):
             print(f"  Backup: {DATA_DIR / config['data_subdir']}")
 
             if sync_data(source_id=source_id):
-                print("  Sync completed!")
+                print(f"  ✓ Sync completed!")
             else:
-                print("  Warning: Could not sync. Using existing local data if available.")
-
-        # Start background sync thread
-        print(f"\nBackground sync: Every {SYNC_INTERVAL // 3600} hour(s)")
-        sync_thread = threading.Thread(target=background_sync, daemon=True)
-        sync_thread.start()
-        print("Background sync thread started.")
+                print(f"  ⚠ Warning: Could not sync. Using existing local data if available.")
     else:
         print("\nSkipping initial sync (--no-sync flag)")
 
-    # Find available port
-    actual_port = find_available_port(host, port)
-    if actual_port != port:
-        print(f"\nPort {port} is busy, using port {actual_port} instead")
+    # Start background sync thread
+    print(f"\nBackground sync: Every {SYNC_INTERVAL // 3600} hour(s)")
+    sync_thread = threading.Thread(target=background_sync, daemon=True)
+    sync_thread.start()
+    print("Background sync thread started.")
 
     print(f"\nStarting server...")
-    print(f"Open http://{host}:{actual_port} in your browser")
+    print(f"Open http://{host}:{port} in your browser")
     print("=" * 60)
-    app.run(host=host, port=actual_port, debug=debug, use_reloader=False)
+    app.run(host=host, port=port, debug=debug, use_reloader=False)
 
 
 if __name__ == '__main__':
-    run_server()
+    # For direct execution
+    run_server(debug=True)

@@ -9,6 +9,8 @@ Background sync runs every hour to keep data updated.
 import json
 import os
 import shutil
+import signal
+import subprocess
 import threading
 import time
 from datetime import datetime
@@ -574,11 +576,18 @@ def parse_codex_conversation(session_file, session_id):
 
                     elif payload_type == "reasoning":
                         # Reasoning/thinking block
-                        summary_parts = payload.get("summary", [])
                         thinking_text = ""
-                        for part in summary_parts:
-                            if isinstance(part, dict) and part.get("type") == "summary_text":
-                                thinking_text += part.get("text", "") + "\n"
+                        
+                        # Check if content is encrypted
+                        if payload.get("encrypted_content"):
+                            thinking_text = "[Reasoning content is encrypted and cannot be displayed]\n\nOpenAI Codex encrypts extended thinking for privacy. The model used reasoning here, but the content is not accessible in the logs."
+                        else:
+                            # Try to extract from summary (unencrypted format)
+                            summary_parts = payload.get("summary", [])
+                            for part in summary_parts:
+                                if isinstance(part, dict) and part.get("type") == "summary_text":
+                                    thinking_text += part.get("text", "") + "\n"
+                        
                         if thinking_text:
                             messages.append({
                                 "role": "assistant",
@@ -936,10 +945,43 @@ def api_status():
     })
 
 
+def kill_process_on_port(port):
+    """Kill any process running on the specified port."""
+    try:
+        # Find process ID on the port
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pid = result.stdout.strip()
+            print(f"⚠️  Port {port} is in use by process {pid}")
+            print(f"🔄 Killing process {pid}...")
+            try:
+                os.kill(int(pid), signal.SIGTERM)
+                time.sleep(0.5)  # Give it a moment to terminate
+                print(f"✓ Process killed successfully")
+            except ProcessLookupError:
+                pass  # Process already gone
+            except Exception as e:
+                print(f"Warning: Could not kill process: {e}")
+    except FileNotFoundError:
+        # lsof not available (not on Unix-like system)
+        pass
+    except Exception as e:
+        print(f"Warning: Could not check port: {e}")
+
+
 if __name__ == '__main__':
+    PORT = 6126
+    
     print("=" * 60)
     print("AI Conversation History Viewer")
     print("=" * 60)
+    
+    # Kill any process on the port
+    kill_process_on_port(PORT)
 
     # Sync data from all sources
     print("\nSyncing data from all sources...")
@@ -949,9 +991,9 @@ if __name__ == '__main__':
         print(f"  Backup: {DATA_DIR / config['data_subdir']}")
 
         if sync_data(source_id=source_id):
-            print(f"  Sync completed!")
+            print(f"  ✓ Sync completed!")
         else:
-            print(f"  Warning: Could not sync. Using existing local data if available.")
+            print(f"  ⚠ Warning: Could not sync. Using existing local data if available.")
 
     # Start background sync thread
     print(f"\nBackground sync: Every {SYNC_INTERVAL // 3600} hour(s)")
@@ -960,6 +1002,6 @@ if __name__ == '__main__':
     print("Background sync thread started.")
 
     print(f"\nStarting server...")
-    print(f"Open http://localhost:5050 in your browser")
+    print(f"Open http://localhost:{PORT} in your browser")
     print("=" * 60)
-    app.run(debug=True, port=5050, use_reloader=False)
+    app.run(debug=True, port=PORT, use_reloader=False)

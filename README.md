@@ -49,7 +49,21 @@ CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
 
 ## Installation
 
-### Via pip (Recommended)
+### Via uv (Recommended)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package installer. Install it first if you haven't:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then install clicodelog:
+
+```bash
+uv pip install clicodelog
+```
+
+### Via pip
 
 ```bash
 pip install clicodelog
@@ -60,6 +74,8 @@ pip install clicodelog
 ```bash
 git clone https://github.com/monk1337/clicodelog.git
 cd clicodelog
+uv pip install -e .
+# or with pip:
 pip install -e .
 ```
 
@@ -67,26 +83,34 @@ pip install -e .
 
 ## Usage
 
-If installed via pip:
+After installation, simply run:
 
 ```bash
 clicodelog
 ```
 
-Or run directly from source:
+The app will:
+- Auto-kill any process on port **6126** (if occupied)
+- Sync data from all AI coding agent sources
+- Start a web server at **http://localhost:6126**
+
+### Command Options
 
 ```bash
-./run.sh
+clicodelog --help               # Show all options
+clicodelog --port 8080          # Use custom port
+clicodelog --host 0.0.0.0       # Bind to all interfaces
+clicodelog --no-sync            # Skip initial data sync
+clicodelog --debug              # Run in debug mode
 ```
 
-Or manually:
+### Alternative: Run from source
 
 ```bash
-pip install -r requirements.txt
-python app.py
+git clone https://github.com/monk1337/clicodelog.git
+cd clicodelog
+python -m clicodelog.cli
 ```
-
-Open http://localhost:5050 in your browser, or another port if it's busy.
 
 ## Features
 
@@ -132,13 +156,16 @@ Open http://localhost:5050 in your browser, or another port if it's busy.
 
 ### CLI Options
 
+```bash
+clicodelog --help               # Show help message
+clicodelog --version            # Show version
+clicodelog --port 8080          # Run on custom port (default: 6126)
+clicodelog --host 0.0.0.0       # Bind to all interfaces (default: 127.0.0.1)
+clicodelog --no-sync            # Skip initial data sync
+clicodelog --debug              # Run in debug mode
 ```
-clicodelog --help
-clicodelog --port 8080        # Run on custom port
-clicodelog --host 0.0.0.0     # Bind to all interfaces
-clicodelog --no-sync          # Skip initial data sync
-clicodelog --debug            # Run in debug mode
-```
+
+**Note:** The app automatically kills any process running on the specified port before starting.
 
 ---
 

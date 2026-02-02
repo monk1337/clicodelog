@@ -19,8 +19,8 @@ def main():
     parser.add_argument(
         "--port", "-p",
         type=int,
-        default=5050,
-        help="Port to run the server on (default: 5050)",
+        default=6126,
+        help="Port to run the server on (default: 6126)",
     )
     parser.add_argument(
         "--host", "-H",

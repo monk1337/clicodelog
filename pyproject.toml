@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clicodelog"
-version = "0.2.0"
+version = "0.2.2"
 description = "A lightweight, local-first web app to browse, inspect, and export logs from CLI-based AI coding agents"
 readme = "README.md"
 license = "MIT"

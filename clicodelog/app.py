@@ -83,7 +83,7 @@ def sync_data(source_id=None, silent=False):
             return False
 
         # Create data directory if it doesn't exist
-        DATA_DIR.mkdir(exist_ok=True)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
 
         # Copy source directory
         if not silent:

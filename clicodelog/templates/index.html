@@ -60,10 +60,27 @@
         }
 
         .app {
-            display: grid;
-            grid-template-columns: 280px 320px 1fr;
+            display: flex;
             height: calc(100vh - 60px);
             margin-top: 60px;
+        }
+
+        .resize-handle {
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .resize-handle:hover,
+        .resize-handle.dragging {
+            background: var(--accent-blue);
+        }
+
+        body.resizing {
+            user-select: none;
+            cursor: col-resize;
         }
 
         .panel {
@@ -689,6 +706,135 @@
             color: white;
             border-color: var(--accent-blue);
         }
+
+        /* Session Filters */
+        .session-filters {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .session-filters select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 3px 6px;
+            color: var(--text-primary);
+            font-size: 11px;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .session-filters select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .session-filters .filter-reset-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 3px 8px;
+            color: var(--text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .session-filters .filter-reset-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-blue);
+        }
+
+        [data-theme="light"] .session-filters select {
+            background: var(--bg-secondary);
+        }
+
+        /* Project Naming & Tagging */
+        .list-item {
+            position: relative;
+        }
+
+        .edit-btn {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-secondary);
+            z-index: 5;
+        }
+
+        .edit-btn:hover {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        .list-item:hover .edit-btn {
+            display: block;
+        }
+
+        .tag-chip {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            margin: 1px 2px;
+            color: white;
+        }
+
+        .tag-filter-bar {
+            display: none;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .tag-filter-bar.visible {
+            display: flex;
+        }
+
+        .tag-filter-chip {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            color: white;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+
+        .tag-filter-chip:hover,
+        .tag-filter-chip.active {
+            opacity: 1;
+        }
+
+        .tag-filter-chip.active {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 1px;
+        }
+
+        .tag-filter-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -745,13 +891,14 @@
 
     <div class="app">
         <!-- Projects Panel -->
-        <div class="panel" id="projects-panel">
+        <div class="panel" id="projects-panel" style="width: 280px; min-width: 180px; max-width: 500px; flex-shrink: 0;">
             <div class="panel-header">
                 <h2>Projects</h2>
             </div>
             <div class="search-box">
                 <input type="text" id="project-search" placeholder="Search projects...">
             </div>
+            <div class="tag-filter-bar" id="tag-filter-bar"></div>
             <div class="panel-content" id="projects-list">
                 <div class="loading">
                     <div class="spinner"></div>
@@ -760,10 +907,35 @@
             </div>
         </div>
 
+        <div class="resize-handle" id="resize-handle-1"></div>
+
         <!-- Sessions Panel -->
-        <div class="panel" id="sessions-panel">
+        <div class="panel" id="sessions-panel" style="width: 320px; min-width: 200px; max-width: 600px; flex-shrink: 0;">
             <div class="panel-header">
                 <h2>Sessions</h2>
+            </div>
+            <div class="session-filters" id="session-filters" style="display: none;">
+                <select id="filter-size" onchange="applySessionFilters()">
+                    <option value="all">Size: All</option>
+                    <option value="<10KB">&lt;10KB</option>
+                    <option value="10-100KB">10-100KB</option>
+                    <option value="100KB-1MB">100KB-1MB</option>
+                    <option value=">1MB">&gt;1MB</option>
+                </select>
+                <select id="filter-date" onchange="applySessionFilters()">
+                    <option value="all">Date: All</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="older">Older</option>
+                </select>
+                <select id="filter-sort" onchange="applySessionFilters()">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="largest">Largest First</option>
+                    <option value="messages">Most Messages</option>
+                </select>
+                <button class="filter-reset-btn" onclick="resetSessionFilters()">Reset</button>
             </div>
             <div class="panel-content" id="sessions-list">
                 <div class="empty-state">
@@ -773,8 +945,10 @@
             </div>
         </div>
 
+        <div class="resize-handle" id="resize-handle-2"></div>
+
         <!-- Conversation Panel -->
-        <div class="panel conversation-panel" id="conversation-panel">
+        <div class="panel conversation-panel" id="conversation-panel" style="flex: 1; min-width: 300px;">
             <div id="conversation-content">
                 <div class="empty-state">
                     <div class="empty-state-icon">💬</div>
@@ -786,6 +960,58 @@
     </div>
 
     <script>
+        // Resizable columns
+        (function initResizableColumns() {
+            const handles = [
+                { el: document.getElementById('resize-handle-1'), panel: document.getElementById('projects-panel') },
+                { el: document.getElementById('resize-handle-2'), panel: document.getElementById('sessions-panel') }
+            ];
+
+            // Restore saved widths
+            try {
+                const saved = JSON.parse(localStorage.getItem('columnWidths'));
+                if (saved) {
+                    if (saved.projects) handles[0].panel.style.width = saved.projects + 'px';
+                    if (saved.sessions) handles[1].panel.style.width = saved.sessions + 'px';
+                }
+            } catch (e) {}
+
+            handles.forEach(({ el, panel }) => {
+                el.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    const startX = e.clientX;
+                    const startWidth = panel.offsetWidth;
+                    const minW = parseInt(getComputedStyle(panel).minWidth) || 100;
+                    const maxW = parseInt(getComputedStyle(panel).maxWidth) || 800;
+
+                    el.classList.add('dragging');
+                    document.body.classList.add('resizing');
+
+                    function onMouseMove(e) {
+                        const delta = e.clientX - startX;
+                        const newWidth = Math.min(maxW, Math.max(minW, startWidth + delta));
+                        panel.style.width = newWidth + 'px';
+                    }
+
+                    function onMouseUp() {
+                        el.classList.remove('dragging');
+                        document.body.classList.remove('resizing');
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+
+                        // Save widths
+                        localStorage.setItem('columnWidths', JSON.stringify({
+                            projects: handles[0].panel.offsetWidth,
+                            sessions: handles[1].panel.offsetWidth
+                        }));
+                    }
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+            });
+        })();
+
         let currentProjectId = null;
         let currentSessionId = null;
         let currentSource = 'claude-code';
@@ -793,6 +1019,8 @@
         let availableSources = [];
         let allThinkingExpanded = false;
         let currentConversation = null;
+        let currentSessions = [];
+        let activeTagFilter = null;
 
         // Theme Management
         function getPreferredTheme() {
@@ -861,6 +1089,9 @@
             // Update UI
             document.getElementById('export-btn').disabled = true;
             document.getElementById('copy-btn').disabled = true;
+            currentSessions = [];
+            document.getElementById('session-filters').style.display = 'none';
+            resetSessionFilters();
 
             // Reset panels
             document.getElementById('sessions-list').innerHTML = `
@@ -877,8 +1108,11 @@
                 </div>
             `;
 
+            activeTagFilter = null;
+
             // Load projects for new source
             await loadProjects();
+            await loadTagFilters();
             await fetchSyncStatus();
         }
 
@@ -1177,10 +1411,25 @@
             }
         }
 
+        // Deterministic tag color from palette
+        const TAG_COLORS = ['#e53e3e','#dd6b20','#d69e2e','#38a169','#319795','#3182ce','#5a67d8','#805ad5','#d53f8c','#718096'];
+        function tagColor(tag) {
+            let hash = 0;
+            for (let i = 0; i < tag.length; i++) hash = ((hash << 5) - hash + tag.charCodeAt(i)) | 0;
+            return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+        }
+
         // Render projects list
         function renderProjects(projectsList) {
             const container = document.getElementById('projects-list');
-            if (projectsList.length === 0) {
+
+            // Apply tag filter if active
+            let filtered = projectsList;
+            if (activeTagFilter) {
+                filtered = projectsList.filter(p => p.tags && p.tags.includes(activeTagFilter));
+            }
+
+            if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <p>No projects found</p>
@@ -1189,13 +1438,81 @@
                 return;
             }
 
-            container.innerHTML = projectsList.map(project => `
+            container.innerHTML = filtered.map(project => {
+                const displayName = project.custom_name || project.name;
+                const tagsHtml = (project.tags || []).map(t =>
+                    `<span class="tag-chip" style="background:${tagColor(t)}">${escapeHtml(t)}</span>`
+                ).join('');
+                return `
                 <div class="list-item ${project.id === currentProjectId ? 'active' : ''}"
                      onclick="selectProject('${project.id}')">
-                    <div class="list-item-title">${escapeHtml(project.name)}</div>
-                    <div class="list-item-meta">${project.session_count} sessions</div>
+                    <button class="edit-btn" onclick="event.stopPropagation(); openEditProject('${project.id}')" title="Edit name & tags">&#9998;</button>
+                    <div class="list-item-title">${escapeHtml(displayName)}</div>
+                    <div class="list-item-meta">${project.session_count} sessions ${tagsHtml}</div>
                 </div>
-            `).join('');
+            `}).join('');
+        }
+
+        // Edit project name and tags
+        async function openEditProject(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            const currentName = project.custom_name || '';
+            const currentTags = (project.tags || []).join(', ');
+
+            const newName = prompt('Custom project name (leave empty to use default):', currentName);
+            if (newName === null) return; // cancelled
+
+            const newTagsStr = prompt('Tags (comma-separated):', currentTags);
+            if (newTagsStr === null) return; // cancelled
+
+            const newTags = newTagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+            try {
+                await fetch(`/api/projects/${projectId}/meta?source=${currentSource}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ custom_name: newName, tags: newTags })
+                });
+                await loadProjects();
+                await loadTagFilters();
+            } catch (error) {
+                console.error('Error saving project metadata:', error);
+            }
+        }
+
+        // Load tag filter chips
+        async function loadTagFilters() {
+            try {
+                const response = await fetch(`/api/tags?source=${currentSource}`);
+                const tags = await response.json();
+                const bar = document.getElementById('tag-filter-bar');
+
+                if (tags.length === 0) {
+                    bar.classList.remove('visible');
+                    bar.innerHTML = '';
+                    activeTagFilter = null;
+                    return;
+                }
+
+                bar.classList.add('visible');
+                bar.innerHTML = '<span class="tag-filter-label">Tags:</span>' +
+                    tags.map(t => `<span class="tag-filter-chip ${activeTagFilter === t ? 'active' : ''}" style="background:${tagColor(t)}" onclick="filterByTag('${escapeHtml(t)}')">${escapeHtml(t)}</span>`).join('');
+            } catch (error) {
+                console.error('Error loading tags:', error);
+            }
+        }
+
+        // Filter projects by tag
+        function filterByTag(tag) {
+            if (activeTagFilter === tag) {
+                activeTagFilter = null;
+            } else {
+                activeTagFilter = tag;
+            }
+            renderProjects(projects);
+            loadTagFilters(); // refresh active state
         }
 
         // Select project
@@ -1218,8 +1535,9 @@
 
             try {
                 const response = await fetch(`/api/projects/${projectId}/sessions?source=${currentSource}`);
-                const sessions = await response.json();
-                renderSessions(sessions);
+                currentSessions = await response.json();
+                document.getElementById('session-filters').style.display = 'flex';
+                applySessionFilters();
             } catch (error) {
                 console.error('Error loading sessions:', error);
                 sessionsContainer.innerHTML = `
@@ -1228,6 +1546,76 @@
                     </div>
                 `;
             }
+        }
+
+        // Session filter logic
+        function applySessionFilters() {
+            const sizeFilter = document.getElementById('filter-size').value;
+            const dateFilter = document.getElementById('filter-date').value;
+            const sortFilter = document.getElementById('filter-sort').value;
+
+            let filtered = currentSessions.slice();
+
+            // Size filter
+            if (sizeFilter !== 'all') {
+                filtered = filtered.filter(s => {
+                    const size = s.size || 0;
+                    switch (sizeFilter) {
+                        case '<10KB': return size < 10240;
+                        case '10-100KB': return size >= 10240 && size < 102400;
+                        case '100KB-1MB': return size >= 102400 && size < 1048576;
+                        case '>1MB': return size >= 1048576;
+                        default: return true;
+                    }
+                });
+            }
+
+            // Date filter
+            if (dateFilter !== 'all') {
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startOfWeek = new Date(startOfDay);
+                startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+                filtered = filtered.filter(s => {
+                    const ts = s.last_timestamp || s.first_timestamp;
+                    if (!ts) return dateFilter === 'older';
+                    const d = new Date(ts);
+                    switch (dateFilter) {
+                        case 'today': return d >= startOfDay;
+                        case 'week': return d >= startOfWeek;
+                        case 'month': return d >= startOfMonth;
+                        case 'older': return d < startOfMonth;
+                        default: return true;
+                    }
+                });
+            }
+
+            // Sort
+            switch (sortFilter) {
+                case 'newest':
+                    filtered.sort((a, b) => new Date(b.last_timestamp || 0) - new Date(a.last_timestamp || 0));
+                    break;
+                case 'oldest':
+                    filtered.sort((a, b) => new Date(a.last_timestamp || 0) - new Date(b.last_timestamp || 0));
+                    break;
+                case 'largest':
+                    filtered.sort((a, b) => (b.size || 0) - (a.size || 0));
+                    break;
+                case 'messages':
+                    filtered.sort((a, b) => (b.message_count || 0) - (a.message_count || 0));
+                    break;
+            }
+
+            renderSessions(filtered);
+        }
+
+        function resetSessionFilters() {
+            document.getElementById('filter-size').value = 'all';
+            document.getElementById('filter-date').value = 'all';
+            document.getElementById('filter-sort').value = 'newest';
+            applySessionFilters();
         }
 
         // Render sessions list
@@ -1258,9 +1646,7 @@
         async function selectSession(sessionId) {
             currentSessionId = sessionId;
             // Re-render sessions to update active state
-            const sessionsResponse = await fetch(`/api/projects/${currentProjectId}/sessions?source=${currentSource}`);
-            const sessions = await sessionsResponse.json();
-            renderSessions(sessions);
+            applySessionFilters();
 
             const conversationContainer = document.getElementById('conversation-content');
             conversationContainer.innerHTML = `
@@ -1373,7 +1759,9 @@
         document.getElementById('project-search').addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
             const filtered = projects.filter(p =>
-                p.name.toLowerCase().includes(query)
+                p.name.toLowerCase().includes(query) ||
+                (p.custom_name && p.custom_name.toLowerCase().includes(query)) ||
+                (p.tags && p.tags.some(t => t.toLowerCase().includes(query)))
             );
             renderProjects(filtered);
         });
@@ -1389,6 +1777,7 @@
         async function init() {
             await loadSources();
             await loadProjects();
+            await loadTagFilters();
         }
         init();
     </script>

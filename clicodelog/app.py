@@ -32,6 +32,9 @@ PACKAGE_DIR = Path(__file__).parent
 APP_DATA_DIR = Path.home() / ".clicodelog"
 DATA_DIR = APP_DATA_DIR / "data"
 
+# Project metadata file for custom names and tags
+PROJECT_META_FILE = APP_DATA_DIR / "project_meta.json"
+
 # Sync interval in seconds (1 hour = 3600 seconds)
 SYNC_INTERVAL = 3600
 
@@ -174,6 +177,29 @@ def decode_path_id(encoded_id):
     return base64.urlsafe_b64decode(encoded_id.encode()).decode()
 
 
+def load_project_meta():
+    """Load project metadata from JSON file."""
+    if PROJECT_META_FILE.exists():
+        try:
+            with open(PROJECT_META_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def save_project_meta(meta):
+    """Save project metadata to JSON file."""
+    APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(PROJECT_META_FILE, 'w') as f:
+        json.dump(meta, f, indent=2)
+
+
+def get_project_meta_key(project_id, source_id):
+    """Return a unique key for a project in a given source."""
+    return f"{source_id}:{project_id}"
+
+
 def get_projects(source_id=None):
     """Get all project directories for the specified source."""
     if source_id is None:
@@ -187,6 +213,7 @@ def get_projects(source_id=None):
     if not data_dir.exists():
         return []
 
+    meta = load_project_meta()
     projects = []
 
     if source_id == "claude-code":
@@ -196,9 +223,13 @@ def get_projects(source_id=None):
                 # Convert directory name back to readable path
                 readable_name = project_dir.name.replace("-", "/").lstrip("/")
                 sessions = list(project_dir.rglob("*.jsonl"))
+                key = get_project_meta_key(project_dir.name, source_id)
+                pm = meta.get(key, {})
                 projects.append({
                     "id": project_dir.name,
                     "name": readable_name,
+                    "custom_name": pm.get("custom_name", ""),
+                    "tags": pm.get("tags", []),
                     "session_count": len(sessions),
                     "path": str(project_dir)
                 })
@@ -217,9 +248,13 @@ def get_projects(source_id=None):
         for cwd, sessions in sorted(cwd_sessions.items()):
             # Create a safe ID from the cwd path using base64 encoding
             project_id = encode_path_id(cwd)
+            key = get_project_meta_key(project_id, source_id)
+            pm = meta.get(key, {})
             projects.append({
                 "id": project_id,
                 "name": cwd,
+                "custom_name": pm.get("custom_name", ""),
+                "tags": pm.get("tags", []),
                 "session_count": len(sessions),
                 "path": cwd
             })
@@ -237,9 +272,13 @@ def get_projects(source_id=None):
 
         for project_hash, sessions in sorted(hash_sessions.items()):
             # Use the hash as ID, show shortened hash as name
+            key = get_project_meta_key(project_hash, source_id)
+            pm = meta.get(key, {})
             projects.append({
                 "id": project_hash,
                 "name": f"Project {project_hash[:8]}...",
+                "custom_name": pm.get("custom_name", ""),
+                "tags": pm.get("tags", []),
                 "session_count": len(sessions),
                 "path": str(data_dir / project_hash)
             })
@@ -797,6 +836,47 @@ async def api_conversation(project_id: str, session_id: str, source: Optional[st
     return get_conversation(project_id, session_id, source_id)
 
 
+@app.get("/api/projects/{project_id}/meta")
+async def api_get_project_meta(project_id: str, source: Optional[str] = None):
+    """Get project metadata (custom name, tags)."""
+    source_id = source or current_source
+    meta = load_project_meta()
+    key = get_project_meta_key(project_id, source_id)
+    pm = meta.get(key, {})
+    return {"custom_name": pm.get("custom_name", ""), "tags": pm.get("tags", [])}
+
+
+@app.put("/api/projects/{project_id}/meta")
+async def api_set_project_meta(project_id: str, request: Request, source: Optional[str] = None):
+    """Set project metadata (custom name, tags)."""
+    source_id = source or current_source
+    body = await request.json()
+    meta = load_project_meta()
+    key = get_project_meta_key(project_id, source_id)
+    if key not in meta:
+        meta[key] = {}
+    if "custom_name" in body:
+        meta[key]["custom_name"] = body["custom_name"]
+    if "tags" in body:
+        meta[key]["tags"] = body["tags"]
+    save_project_meta(meta)
+    return {"status": "success"}
+
+
+@app.get("/api/tags")
+async def api_get_tags(source: Optional[str] = None):
+    """Get all unique tags for a source."""
+    source_id = source or current_source
+    meta = load_project_meta()
+    prefix = f"{source_id}:"
+    tags = set()
+    for key, pm in meta.items():
+        if key.startswith(prefix):
+            for tag in pm.get("tags", []):
+                tags.add(tag)
+    return sorted(tags)
+
+
 @app.get("/api/search")
 async def api_search(q: Optional[str] = None, source: Optional[str] = None):
     """Search across all conversations."""
@@ -1022,10 +1102,20 @@ def kill_process_on_port(port, max_retries=3):
     return False
 
 
+BANNER = r"""
+   ____ _ _  ____          _      _
+  / ___| (_)/ ___|___   __| | ___| |    ___   __ _
+ | |   | | | |   / _ \ / _` |/ _ \ |   / _ \ / _` |
+ | |___| | | |__| (_) | (_| |  __/ |__| (_) | (_| |
+  \____|_|_|\____\___/ \__,_|\___|_____\___/ \__, |
+                                              |___/
+"""
+
+
 def run_server(host="127.0.0.1", port=6126, skip_sync=False, debug=False):
     """Run the FastAPI server with uvicorn."""
-    print("=" * 60)
-    print("CLI Code Log - AI Conversation History Viewer")
+    print(BANNER)
+    print("  AI Conversation History Viewer")
     print("=" * 60)
     
     # Kill any process on the port

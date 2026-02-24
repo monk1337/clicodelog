@@ -13,7 +13,15 @@ router = APIRouter()
 async def api_sync(source: Optional[str] = None):
     source_id = source or _sync.current_source
     try:
-        _sync.sync_data(source_id=source_id, silent=True)
+        ran = _sync.sync_data(source_id=source_id, silent=True)
+        if not ran:
+            return JSONResponse(
+                {
+                    "status": "error",
+                    "message": f"Sync did not run for source '{source_id}'.",
+                },
+                status_code=503,
+            )
         last = _sync.last_sync_time.get(source_id)
         return {"status": "success", "source": source_id, "last_sync": last.isoformat() if last else None}
     except Exception as e:

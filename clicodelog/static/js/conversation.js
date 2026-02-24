@@ -184,7 +184,6 @@ function renderConversation(conv) {
     });
     currentConversation = conv;
     lazyOffset = 0;
-    roleFilter = 'all';
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
 
     activeFilters.clear();

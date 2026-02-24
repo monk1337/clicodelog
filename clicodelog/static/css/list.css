@@ -1,0 +1,63 @@
+.search-box {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+.search-box input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+.search-box input:focus { outline: none; border-color: var(--accent-blue); }
+
+.list-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+}
+.list-item:hover { background: var(--bg-secondary); }
+.list-item.active { background: var(--bg-tertiary); border-left: 3px solid var(--accent-blue); }
+
+.list-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.list-item-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+.subagent-item {
+    padding-left: 28px;
+    background: var(--bg-primary);
+    border-left: 2px solid var(--accent-purple);
+}
+.subagent-item:hover { background: var(--bg-secondary); }
+.subagent-arrow { color: var(--accent-purple); font-family: var(--font-mono); }
+
+.subagent-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(163, 113, 247, 0.12);
+    color: var(--accent-purple);
+    border: 1px solid rgba(163, 113, 247, 0.3);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.subagent-badge:hover { background: rgba(163, 113, 247, 0.25); }
+
+[data-theme="light"] .search-box input { background: var(--bg-secondary); }
+[data-theme="light"] .search-box input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+[data-theme="light"] .list-item:hover { background: var(--bg-tertiary); }
+[data-theme="light"] .list-item.active { background: #dbeafe; border-left: 3px solid var(--accent-blue); }

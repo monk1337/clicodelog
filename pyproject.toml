@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clicodelog"
-version = "0.2.2"
+version = "0.2.3"
 description = "A lightweight, local-first web app to browse, inspect, and export logs from CLI-based AI coding agents"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 authors = [
     {name = "monk1337"}
 ]
@@ -67,4 +67,4 @@ where = ["."]
 include = ["clicodelog*"]
 
 [tool.setuptools.package-data]
-clicodelog = ["templates/*.html"]
+clicodelog = ["templates/*.html", "static/css/*.css", "static/js/*.js"]

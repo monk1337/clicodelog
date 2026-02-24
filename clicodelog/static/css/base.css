@@ -1,0 +1,16 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--font-ui);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.app {
+    display: flex;
+    height: calc(100vh - 60px);
+    margin-top: 60px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

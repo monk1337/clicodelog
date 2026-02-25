@@ -1,0 +1,98 @@
+.top-controls {
+    position: fixed; top: 16px; right: 16px; z-index: 100;
+    display: flex; gap: 8px; align-items: center;
+}
+
+.control-btn {
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 8px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; color: var(--text-primary);
+    transition: all 0.2s ease; box-shadow: 0 2px 8px var(--shadow-color);
+}
+.control-btn:hover {
+    background: var(--bg-tertiary); border-color: var(--accent-blue);
+    transform: translateY(-1px);
+}
+.control-btn .icon { font-size: 16px; }
+.control-btn.syncing .icon { animation: spin 1s linear infinite; }
+.control-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.control-btn:disabled:hover {
+    background: var(--bg-secondary); border-color: var(--border-color); transform: none;
+}
+.control-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+
+.sync-status {
+    font-size: 11px; color: var(--text-muted);
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 6px; padding: 6px 10px;
+}
+
+.source-selector {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 6px 12px;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+.source-selector label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.source-selector select {
+    background: var(--bg-tertiary); border: 1px solid var(--border-color);
+    border-radius: 4px; padding: 4px 8px; color: var(--text-primary);
+    font-size: 13px; font-weight: 500; cursor: pointer; min-width: 140px;
+}
+.source-selector select:focus { outline: none; border-color: var(--accent-blue); }
+.source-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); }
+.source-indicator.unavailable { background: var(--text-muted); }
+
+.session-filters {
+    display: flex; gap: 6px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary); flex-wrap: wrap; align-items: center;
+}
+.session-filters select {
+    background: var(--bg-tertiary); border: 1px solid var(--border-color);
+    border-radius: 4px; padding: 3px 6px; color: var(--text-primary);
+    font-size: 11px; cursor: pointer; min-width: 0;
+}
+.session-filters select:focus { outline: none; border-color: var(--accent-blue); }
+.session-filters .filter-reset-btn {
+    background: none; border: 1px solid var(--border-color);
+    border-radius: 4px; padding: 3px 8px; color: var(--text-muted);
+    font-size: 11px; cursor: pointer; margin-left: auto;
+}
+.session-filters .filter-reset-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+
+.conv-ctrl-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 3px 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-ui);
+}
+.conv-ctrl-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+
+.role-filter-group { display: flex; gap: 3px; }
+.role-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    font-family: var(--font-ui);
+    letter-spacing: 0.1px;
+}
+.role-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+.role-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+
+.conv-nav-btns { display: flex; gap: 4px; }
+
+[data-theme="light"] .source-selector select { background: var(--bg-secondary); }
+[data-theme="light"] .session-filters select { background: var(--bg-secondary); }

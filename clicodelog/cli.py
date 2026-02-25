@@ -42,7 +42,7 @@ def main():
     args = parser.parse_args()
 
     # Import here to avoid slow startup for --help/--version
-    from clicodelog.app import run_server
+    from clicodelog.server import run_server
 
     run_server(
         host=args.host,

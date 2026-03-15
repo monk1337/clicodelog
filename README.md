@@ -3,10 +3,17 @@
 <img width="220px" src="https://raw.githubusercontent.com/monk1337/clicodelog/refs/heads/main/screenshots/logo.png">
 </div>
 
+<div align="center">
+
+<h3>Your AI coding agent just edited 30 files across 6 directories.<br>What actually happened?</h3>
+
 <p>
-A lightweight, local-first web app to browse, inspect, and export logs from
-CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
+Browse every session from Claude Code, OpenAI Codex, and Gemini CLI
+the thinking, the tool calls, the file changes, the token costs.
+All in one local interface. Nothing leaves your machine.
 </p>
+
+</div>
 
 <p>
   <a href="#features">Features</a> •
@@ -46,6 +53,12 @@ CLI-based AI coding agents — Claude Code, OpenAI Codex, and Gemini CLI.
 </div> -->
 
 ---
+
+| Light Mode | Dark Mode |
+|------------|-----------|
+| ![Light Mode](screenshots/light.png) | ![Dark Mode](screenshots/dark.png) |
+
+
 
 ## Installation
 
@@ -117,15 +130,30 @@ cd clicodelog
 python -m clicodelog.cli
 ```
 
-## Features
+## Why Developers Use It
 
-- **Multi-source support** — View logs from Claude Code, OpenAI Codex, and Gemini CLI
-- **Three-panel layout** — Projects → Sessions → Conversation
-- **Auto-sync** — Backs up data from source directories every hour
-- **Export** — Download any session as a `.txt` file
-- **Theme support** — Light (soft blue) and Dark modes
-- **Rich display** — User/assistant messages, thinking blocks, tool usage, token stats
-- **Search** — Quickly find projects and sessions
+<table>
+<tr>
+<td>🧠</td>
+<td><b>See the full chain of reasoning</b><br>Read the agent's thinking blocks, tool calls, and decisions in a clean conversation view. No more squinting at raw JSONL.</td>
+</tr>
+<tr>
+<td>🔍</td>
+<td><b>Track what actually ran</b><br>Every file read, shell command, and edit — laid out clearly so you can audit what the agent did before you commit.</td>
+</tr>
+<tr>
+<td>📊</td>
+<td><b>Spot wasted tokens</b><br>Session-level token stats (input, output, cached) so you can see which runs were efficient and which went in circles.</td>
+</tr>
+<tr>
+<td>🔀</td>
+<td><b>All your agents, one place</b><br>Claude Code, Codex, and Gemini CLI side by side. Same interface, same workflow, no context switching.</td>
+</tr>
+<tr>
+<td>🔒</td>
+<td><b>Nothing leaves your machine</b><br>Fully local. Reads from your existing log directories, syncs to a local backup. No cloud, no accounts, no telemetry.</td>
+</tr>
+</table>
 
 ---
 

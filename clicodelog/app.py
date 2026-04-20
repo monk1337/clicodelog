@@ -24,7 +24,13 @@ templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # FastAPI/Starlette changed TemplateResponse to accept `request` first.
+    # Support both the current and older call styles so fresh installs and
+    # older environments render the index page correctly.
+    try:
+        return templates.TemplateResponse(request=request, name="index.html")
+    except TypeError:
+        return templates.TemplateResponse("index.html", {"request": request})
 
 
 app.include_router(router)

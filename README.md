@@ -327,7 +327,7 @@ Then implement the corresponding parser for its log format.
     author       = {Pal, Ankit},                                                                                                                                             
     year         = {2026},
     howpublished = {\url{https://github.com/monk1337/clicodelog}},                                                                                                           
-    note         = {Local web UI for browsing Claude Code, OpenAI Codex, and Gemini CLI session logs — thinking blocks, tool calls, file edits, and token costs}             
+    note         = {Local web UI for browsing Claude Code, OpenAI Codex, and Gemini CLI session logs - thinking blocks, tool calls, file edits, and token costs}             
   }       
 ```
 ---

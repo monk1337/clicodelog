@@ -42,6 +42,15 @@ function formatTokens(n) {
     return String(n);
 }
 
+function renderMarkdownInto(el, text) {
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        el.textContent = text;
+        return;
+    }
+    var html = marked.parse(text, { gfm: true, breaks: true, mangle: false, headerIds: false });
+    el.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+}
+
 function toggleAllThinking() {
     allThinkingExpanded = !allThinkingExpanded;
     var btn = document.getElementById('thinking-toggle-btn');
@@ -105,8 +114,8 @@ function buildMessageEl(msg) {
 
     if (msg.content && msg.content.trim()) {
         var content = document.createElement('div');
-        content.className = 'message-content';
-        content.textContent = msg.content;
+        content.className = 'message-content markdown';
+        renderMarkdownInto(content, msg.content);
         msgDiv.appendChild(content);
     }
 

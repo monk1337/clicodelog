@@ -49,6 +49,19 @@ function renderMarkdownInto(el, text) {
     }
     var html = marked.parse(text, { gfm: true, breaks: true, mangle: false, headerIds: false });
     el.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    if (typeof hljs !== 'undefined') {
+        el.querySelectorAll('pre code').forEach(function(block) {
+            try { hljs.highlightElement(block); } catch (e) {}
+        });
+    }
+}
+
+function openFocusView() {
+    if (!currentProjectId || !currentSessionId) return;
+    var url = '/view?source=' + encodeURIComponent(currentSource) +
+              '&project=' + encodeURIComponent(currentProjectId) +
+              '&session=' + encodeURIComponent(currentSessionId);
+    window.open(url, '_blank', 'noopener');
 }
 
 function toggleAllThinking() {
@@ -172,6 +185,11 @@ function setupLazyObserver(messagesDiv) {
     if (!currentConversation || lazyOffset >= currentConversation.messages.length) return;
     var sentinel = document.getElementById('lazy-sentinel');
     if (!sentinel) return;
+    var scrollRoot = document.getElementById('conversation-content');
+    if (scrollRoot) {
+        var oy = window.getComputedStyle(scrollRoot).overflowY;
+        if (oy !== 'auto' && oy !== 'scroll') scrollRoot = null;
+    }
     lazyObserver = new IntersectionObserver(function(entries) {
         if (!entries[0].isIntersecting) return;
         renderNextBatch(messagesDiv);
@@ -182,7 +200,7 @@ function setupLazyObserver(messagesDiv) {
         } else {
             sentinel.textContent = remaining + ' more\u2026';
         }
-    }, { root: document.getElementById('conversation-content'), rootMargin: '300px' });
+    }, { root: scrollRoot, rootMargin: '600px' });
     lazyObserver.observe(sentinel);
 }
 

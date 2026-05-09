@@ -55,3 +55,4 @@ body.resizing { user-select: none; cursor: col-resize; }
 
 [data-theme="light"] .panel-header { box-shadow: 0 1px 2px var(--shadow-color); }
 [data-theme="light"] .conversation-header { box-shadow: 0 1px 2px var(--shadow-color); }
+

@@ -44,7 +44,7 @@ def get_subagent_sessions(project_id: str, session_id: str, source_id: str) -> l
     sub_dir = data_dir / project_id / session_id
     if not sub_dir.exists():
         return []
-    files = sorted(sub_dir.glob("*.jsonl"), key=lambda x: x.stat().st_mtime, reverse=True)
+    files = sorted(sub_dir.rglob("*.jsonl"), key=lambda x: x.stat().st_mtime, reverse=True)
     return [info for f in files if (info := _parse_session_info(f, source_id)) is not None]
 
 
@@ -61,7 +61,7 @@ def _parse_session_info(session_file: Path, source_id: str):
         return None
 
     sub_dir = session_file.parent / session_file.stem
-    subagent_count = len(list(sub_dir.glob("*.jsonl"))) if sub_dir.exists() else 0
+    subagent_count = len(list(sub_dir.rglob("*.jsonl"))) if sub_dir.exists() else 0
 
     return {
         "id": session_file.stem,

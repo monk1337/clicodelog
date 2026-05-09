@@ -33,4 +33,12 @@ async def index(request: Request):
         return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/view", response_class=HTMLResponse)
+async def view(request: Request):
+    try:
+        return templates.TemplateResponse(request=request, name="view.html")
+    except TypeError:
+        return templates.TemplateResponse("view.html", {"request": request})
+
+
 app.include_router(router)

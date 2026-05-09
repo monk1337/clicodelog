@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversation – clicodelog</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/variables.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/messages.css">
+    <link rel="stylesheet" href="/static/css/controls.css">
+    <link rel="stylesheet" href="/static/css/misc.css">
+    <style>
+        body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+        .view-shell { width: 100%; padding: 0 32px 96px; }
+        .view-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 0; border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; background: var(--bg-primary); z-index: 5;
+        }
+        .view-bar h1 { font-size: 14px; font-weight: 600; color: var(--text-secondary); font-family: var(--font-mono); letter-spacing: -0.2px; }
+        .view-bar .meta { font-size: 12px; color: var(--text-muted); margin-left: 12px; }
+        .view-loading { padding: 80px 0; text-align: center; color: var(--text-muted); }
+        #conversation-content { background: transparent; }
+        .conversation-header { background: transparent; border-bottom: 1px solid var(--border-color); padding: 20px 0 14px; }
+        .messages { padding: 24px 0 64px; }
+        /* On the focus page, let prose use the full screen width */
+        .view-shell .message-content.markdown { max-width: none; }
+        /* hidden stubs so renderConversation() can flip their .disabled without erroring */
+        .view-stubs { display: none; }
+    </style>
+</head>
+<body>
+    <div class="view-shell">
+        <div class="view-bar">
+            <div>
+                <h1 id="view-title">Loading…</h1>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button class="control-btn" onclick="window.close()" title="Close tab">
+                    <span class="icon">✕</span><span>Close</span>
+                </button>
+                <button class="control-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <span class="icon" id="theme-icon">🌙</span>
+                    <span id="theme-label">Dark</span>
+                </button>
+            </div>
+        </div>
+        <div id="conversation-content">
+            <div class="view-loading">Loading conversation…</div>
+        </div>
+        <div class="view-stubs">
+            <button id="export-btn" disabled></button>
+            <button id="copy-btn" disabled></button>
+        </div>
+    </div>
+    <script src="/static/js/vendor/marked.min.js"></script>
+    <script src="/static/js/vendor/purify.min.js"></script>
+    <script src="/static/js/vendor/highlight.min.js"></script>
+    <script src="/static/js/state.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/theme.js"></script>
+    <script src="/static/js/conversation.js"></script>
+    <script>
+        (function() {
+            var p = new URLSearchParams(window.location.search);
+            currentProjectId = p.get('project');
+            currentSessionId = p.get('session');
+            currentSource = p.get('source') || 'claude-code';
+            var titleEl = document.getElementById('view-title');
+            titleEl.textContent = currentSessionId || 'Conversation';
+            if (!currentProjectId || !currentSessionId) {
+                document.getElementById('conversation-content').innerHTML =
+                    '<div class="view-loading">Missing project or session in URL.</div>';
+                return;
+            }
+            fetch('/api/projects/' + encodeURIComponent(currentProjectId) +
+                  '/sessions/' + encodeURIComponent(currentSessionId) +
+                  '?source=' + encodeURIComponent(currentSource))
+                .then(function(r) { return r.json(); })
+                .then(function(conv) {
+                    if (conv.error) {
+                        document.getElementById('conversation-content').innerHTML =
+                            '<div class="view-loading">Error: ' + conv.error + '</div>';
+                        return;
+                    }
+                    renderConversation(conv);
+                })
+                .catch(function(e) {
+                    document.getElementById('conversation-content').innerHTML =
+                        '<div class="view-loading">Failed to load: ' + (e && e.message ? e.message : e) + '</div>';
+                });
+        })();
+    </script>
+</body>
+</html>

@@ -116,6 +116,19 @@
     font-size: 11px; color: var(--accent-orange);
     font-family: var(--font-mono);
 }
+.conv-filter-loading {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+.mini-spinner {
+    width: 10px; height: 10px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.7s linear infinite;
+}
 
 [data-theme="light"] .source-selector select { background: var(--bg-secondary); }
 [data-theme="light"] .session-filters select { background: var(--bg-secondary); }

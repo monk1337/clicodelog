@@ -20,14 +20,23 @@ function toggleRoleFilter(filter) {
     applyRoleFilter();
 }
 
-function scrollConvToTop() {
+function getScrollEl() {
     var el = document.getElementById('conversation-content');
-    if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+    if (el) {
+        var oy = window.getComputedStyle(el).overflowY;
+        if (oy === 'auto' || oy === 'scroll') return el;
+    }
+    return document.scrollingElement || document.documentElement;
+}
+
+function scrollConvToTop() {
+    var el = getScrollEl();
+    el.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function scrollConvToBottom() {
-    var el = document.getElementById('conversation-content');
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    var el = getScrollEl();
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 }
 
 function shortPath(cwd) {
@@ -78,6 +87,13 @@ function updateFilterStatus() {
     el.textContent = (dateFromFilter || dateToFilter) ? (shown + ' / ' + total + ' in range') : '';
 }
 
+function showFilterLoading(on) {
+    var el = document.getElementById('conv-filter-loading');
+    if (el) el.style.display = on ? 'inline-flex' : 'none';
+    var btn = document.getElementById('apply-filter-btn');
+    if (btn) btn.disabled = !!on;
+}
+
 function applyDateFilter() {
     var fromEl = document.getElementById('date-from');
     var toEl = document.getElementById('date-to');
@@ -89,7 +105,15 @@ function applyDateFilter() {
         var d2 = new Date(toEl.value + 'T23:59:59.999');
         dateToFilter = isNaN(d2) ? null : d2.getTime();
     } else { dateToFilter = null; }
-    rerenderCurrentConversation();
+    showFilterLoading(true);
+    // Defer to next frame so the spinner can paint before the heavy re-render
+    // blocks the main thread.
+    requestAnimationFrame(function() {
+        setTimeout(function() {
+            try { rerenderCurrentConversation(); }
+            finally { showFilterLoading(false); }
+        }, 0);
+    });
 }
 
 function clearDateFilter() {
@@ -131,6 +155,11 @@ function loadAllMessages() {
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
     var sentinel = document.getElementById('lazy-sentinel');
     if (sentinel) { sentinel.style.display = 'none'; }
+    // Two RAFs give the browser a chance to lay out content-visibility blocks
+    // before we compute scrollHeight, so we actually land at the true bottom.
+    requestAnimationFrame(function() {
+        requestAnimationFrame(scrollConvToBottom);
+    });
 }
 
 function openFocusView() {

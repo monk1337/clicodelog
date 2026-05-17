@@ -1,26 +1,37 @@
 function exportConversation() {
-    if (!currentProjectId || !currentSessionId) return;
+    if (!currentConversation) return;
+    var msgs = (typeof getActiveMessages === 'function') ? getActiveMessages() : currentConversation.messages;
+    var text = buildConversationText(currentConversation, msgs);
+    var suffix = (dateFromFilter || dateToFilter) ? '-filtered' : '';
+    var blob = new Blob([text], { type: 'text/plain' });
+    var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
-    a.href = '/api/projects/' + currentProjectId + '/sessions/' + currentSessionId + '/export?source=' + currentSource;
-    a.download = currentSessionId + '.txt';
+    a.href = url;
+    a.download = (currentSessionId || 'conversation') + suffix + '.txt';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
 }
 
 async function copyConversation() {
     if (!currentConversation) return;
+    var msgs = (typeof getActiveMessages === 'function') ? getActiveMessages() : currentConversation.messages;
     try {
-        await navigator.clipboard.writeText(buildConversationText(currentConversation));
+        await navigator.clipboard.writeText(buildConversationText(currentConversation, msgs));
         var btn = document.getElementById('copy-btn');
-        var label = btn.querySelector('span:last-child');
-        var orig = label.textContent;
-        label.textContent = 'Copied!';
-        setTimeout(function() { label.textContent = orig; }, 2000);
+        if (btn) {
+            var label = btn.querySelector('span:last-child');
+            if (label) {
+                var orig = label.textContent;
+                label.textContent = 'Copied!';
+                setTimeout(function() { label.textContent = orig; }, 2000);
+            }
+        }
     } catch (e) { alert('Failed to copy to clipboard'); }
 }
 
-function buildConversationText(conv) {
+function buildConversationText(conv, messages) {
     var sep60 = '============================================================';
     var sep40 = '----------------------------------------';
     var sep60dash = '------------------------------------------------------------';
@@ -30,7 +41,8 @@ function buildConversationText(conv) {
         conv.summaries.forEach(function(s) { lines.push('  \u2022 ' + s); });
         lines.push('', sep60dash, '');
     }
-    conv.messages.forEach(function(msg) {
+    var msgList = messages || conv.messages;
+    msgList.forEach(function(msg) {
         lines.push('[' + msg.role.toUpperCase() + '] ' + (msg.timestamp || ''));
         if (msg.model) lines.push('Model: ' + msg.model);
         lines.push(sep40);

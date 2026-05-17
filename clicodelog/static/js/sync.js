@@ -28,7 +28,7 @@ async function manualSync() {
         if (data.status === 'success') {
             updateSyncStatus(data.last_sync);
             conversationCache = {};
-            await loadProjects();
+            if (typeof loadProjects === 'function') await loadProjects();
         } else {
             document.getElementById('sync-status').textContent = 'Sync failed';
         }

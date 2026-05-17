@@ -42,7 +42,8 @@ body.resizing { user-select: none; cursor: col-resize; }
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-secondary);
     flex-shrink: 0;
-    gap: 8px;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .conversation-header {

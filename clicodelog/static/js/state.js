@@ -14,3 +14,5 @@ var lazyOffset = 0;
 var lazyBatchSize = 50;
 var activeFilters = new Set();
 var lazyObserver = null;
+var dateFromFilter = null;  // ms epoch, start-of-day, or null
+var dateToFilter = null;    // ms epoch, end-of-day, or null

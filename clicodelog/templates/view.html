@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="/static/css/base.css">
     <link rel="stylesheet" href="/static/css/messages.css">
     <link rel="stylesheet" href="/static/css/controls.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/search.css">
+    <link rel="stylesheet" href="/static/css/list.css">
     <link rel="stylesheet" href="/static/css/misc.css">
     <style>
         body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
@@ -34,27 +37,66 @@
     </style>
 </head>
 <body>
+    <!-- Search modal (reuses search.css from main app) -->
+    <div class="search-modal" id="search-modal">
+        <div class="search-modal-header">
+            <h3>Search Conversations</h3>
+            <span class="search-modal-close" onclick="toggleSearch()">✕</span>
+        </div>
+        <div class="search-input-container">
+            <input type="text" id="global-search-input" placeholder="Search across all conversations...">
+        </div>
+        <div class="search-modal-content" id="search-results">
+            <div class="no-search-results">Type to search across conversations</div>
+        </div>
+    </div>
+
     <div class="view-shell">
         <div class="view-bar">
-            <div>
+            <div style="display:flex; align-items:center; gap:12px; min-width:0;">
                 <h1 id="view-title">Loading…</h1>
+                <span class="sync-status" id="sync-status" title="Last sync time">Syncing...</span>
             </div>
-            <div style="display:flex; gap:8px; align-items:center;">
-                <button class="control-btn" onclick="window.close()" title="Close tab">
-                    <span class="icon">✕</span><span>Close</span>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                <button class="control-btn" id="thinking-toggle-btn" onclick="toggleAllThinking()" title="Toggle all thinking blocks">
+                    <span class="icon">🧠</span><span>Show Thinking</span>
+                </button>
+                <button class="control-btn" id="search-btn" onclick="toggleSearch()" title="Search conversations">
+                    <span class="icon">🔍</span><span>Search</span>
+                </button>
+                <button class="control-btn" id="copy-btn" onclick="copyConversation()" title="Copy to clipboard (filtered if a date range is set)" disabled>
+                    <span class="icon">📋</span><span>Copy</span>
+                </button>
+                <button class="control-btn" id="export-btn" onclick="exportConversation()" title="Export (filtered if a date range is set)" disabled>
+                    <span class="icon">📥</span><span>Export</span>
+                </button>
+                <button class="control-btn" id="sync-btn" onclick="manualSync()" title="Sync data now">
+                    <span class="icon">🔄</span><span>Sync</span>
                 </button>
                 <button class="control-btn" onclick="toggleTheme()" title="Toggle theme">
                     <span class="icon" id="theme-icon">🌙</span>
                     <span id="theme-label">Dark</span>
                 </button>
+                <button class="control-btn" onclick="window.close()" title="Close tab">
+                    <span class="icon">✕</span><span>Close</span>
+                </button>
+            </div>
+        </div>
+        <div class="conv-filter-bar" id="conv-filter-bar" style="display:none">
+            <div class="conv-date-group">
+                <label class="conv-date-label">From</label>
+                <input type="date" id="date-from" class="conv-date-input" onchange="applyDateFilter()">
+                <label class="conv-date-label">To</label>
+                <input type="date" id="date-to" class="conv-date-input" onchange="applyDateFilter()">
+                <button class="conv-ctrl-btn" onclick="clearDateFilter()" title="Clear date filter">Clear</button>
+                <span class="conv-filter-status" id="conv-filter-status"></span>
+            </div>
+            <div class="conv-nav-btns">
+                <button class="conv-ctrl-btn" onclick="loadAllMessages()" title="Render every remaining message now">&#9759; Load All</button>
             </div>
         </div>
         <div id="conversation-content">
             <div class="view-loading">Loading conversation…</div>
-        </div>
-        <div class="view-stubs">
-            <button id="export-btn" disabled></button>
-            <button id="copy-btn" disabled></button>
         </div>
     </div>
     <script src="/static/js/vendor/marked.min.js"></script>
@@ -64,6 +106,9 @@
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/theme.js"></script>
     <script src="/static/js/conversation.js"></script>
+    <script src="/static/js/clipboard.js"></script>
+    <script src="/static/js/sync.js"></script>
+    <script src="/static/js/search.js"></script>
     <script>
         (function() {
             var p = new URLSearchParams(window.location.search);
@@ -72,6 +117,36 @@
             currentSource = p.get('source') || 'claude-code';
             var titleEl = document.getElementById('view-title');
             titleEl.textContent = currentSessionId || 'Conversation';
+
+            // Re-fetch sync status now that currentSource is set
+            if (typeof fetchSyncStatus === 'function') fetchSyncStatus();
+
+            // Wire up search input + Cmd/Ctrl+K + Esc to close modal
+            var searchInput = document.getElementById('global-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    clearTimeout(searchTimeout);
+                    var q = e.target.value;
+                    searchTimeout = setTimeout(function() { searchConversations(q); }, 300);
+                });
+            }
+            document.addEventListener('keydown', function(e) {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); toggleSearch(); }
+                if (e.key === 'Escape') {
+                    var m = document.getElementById('search-modal');
+                    if (m && m.classList.contains('active')) toggleSearch();
+                }
+            });
+
+            // In focus mode, search results open in another focus tab
+            // (no projects/sessions panels here to navigate within).
+            window.selectSearchResult = function(projectId, sessionId) {
+                toggleSearch();
+                var url = '/view?source=' + encodeURIComponent(currentSource) +
+                          '&project=' + encodeURIComponent(projectId) +
+                          '&session=' + encodeURIComponent(sessionId);
+                window.open(url, '_blank', 'noopener');
+            };
             if (!currentProjectId || !currentSessionId) {
                 document.getElementById('conversation-content').innerHTML =
                     '<div class="view-loading">Missing project or session in URL.</div>';

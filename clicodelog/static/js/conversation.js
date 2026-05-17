@@ -56,6 +56,83 @@ function renderMarkdownInto(el, text) {
     }
 }
 
+function getActiveMessages() {
+    if (!currentConversation) return [];
+    var msgs = currentConversation.messages;
+    if (dateFromFilter == null && dateToFilter == null) return msgs;
+    return msgs.filter(function(m) {
+        if (!m.timestamp) return false;
+        var t = Date.parse(m.timestamp);
+        if (isNaN(t)) return false;
+        if (dateFromFilter != null && t < dateFromFilter) return false;
+        if (dateToFilter != null && t > dateToFilter) return false;
+        return true;
+    });
+}
+
+function updateFilterStatus() {
+    var el = document.getElementById('conv-filter-status');
+    if (!el || !currentConversation) return;
+    var total = currentConversation.messages.length;
+    var shown = getActiveMessages().length;
+    el.textContent = (dateFromFilter || dateToFilter) ? (shown + ' / ' + total + ' in range') : '';
+}
+
+function applyDateFilter() {
+    var fromEl = document.getElementById('date-from');
+    var toEl = document.getElementById('date-to');
+    if (fromEl && fromEl.value) {
+        var d = new Date(fromEl.value + 'T00:00:00');
+        dateFromFilter = isNaN(d) ? null : d.getTime();
+    } else { dateFromFilter = null; }
+    if (toEl && toEl.value) {
+        var d2 = new Date(toEl.value + 'T23:59:59.999');
+        dateToFilter = isNaN(d2) ? null : d2.getTime();
+    } else { dateToFilter = null; }
+    rerenderCurrentConversation();
+}
+
+function clearDateFilter() {
+    var fromEl = document.getElementById('date-from');
+    var toEl = document.getElementById('date-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+    dateFromFilter = null;
+    dateToFilter = null;
+    rerenderCurrentConversation();
+}
+
+function rerenderCurrentConversation() {
+    if (!currentConversation) return;
+    var messagesDiv = document.getElementById('messages-container');
+    var sentinel = document.getElementById('lazy-sentinel');
+    if (!messagesDiv || !sentinel) return;
+    if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
+    messagesDiv.textContent = '';
+    lazyOffset = 0;
+    renderNextBatch(messagesDiv);
+    var msgs = getActiveMessages();
+    var remaining = msgs.length - lazyOffset;
+    sentinel.style.display = remaining > 0 ? '' : 'none';
+    sentinel.textContent = remaining > 0 ? (remaining + ' more…') : '';
+    requestAnimationFrame(function() { setupLazyObserver(messagesDiv); });
+    updateFilterStatus();
+}
+
+function loadAllMessages() {
+    if (!currentConversation) return;
+    var messagesDiv = document.getElementById('messages-container');
+    if (!messagesDiv) return;
+    var msgs = getActiveMessages();
+    lazyBatchSize = Math.max(lazyBatchSize, msgs.length);
+    while (lazyOffset < msgs.length) {
+        renderNextBatch(messagesDiv);
+    }
+    if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
+    var sentinel = document.getElementById('lazy-sentinel');
+    if (sentinel) { sentinel.style.display = 'none'; }
+}
+
 function openFocusView() {
     if (!currentProjectId || !currentSessionId) return;
     var url = '/view?source=' + encodeURIComponent(currentSource) +
@@ -171,7 +248,7 @@ function buildMessageEl(msg) {
 
 function renderNextBatch(messagesDiv) {
     if (!currentConversation) return;
-    var msgs = currentConversation.messages;
+    var msgs = getActiveMessages();
     var end = Math.min(lazyOffset + lazyBatchSize, msgs.length);
     for (var i = lazyOffset; i < end; i++) {
         messagesDiv.appendChild(buildMessageEl(msgs[i]));
@@ -182,7 +259,7 @@ function renderNextBatch(messagesDiv) {
 
 function setupLazyObserver(messagesDiv) {
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
-    if (!currentConversation || lazyOffset >= currentConversation.messages.length) return;
+    if (!currentConversation || lazyOffset >= getActiveMessages().length) return;
     var sentinel = document.getElementById('lazy-sentinel');
     if (!sentinel) return;
     var scrollRoot = document.getElementById('conversation-content');
@@ -193,7 +270,7 @@ function setupLazyObserver(messagesDiv) {
     lazyObserver = new IntersectionObserver(function(entries) {
         if (!entries[0].isIntersecting) return;
         renderNextBatch(messagesDiv);
-        var remaining = currentConversation.messages.length - lazyOffset;
+        var remaining = getActiveMessages().length - lazyOffset;
         if (remaining <= 0) {
             lazyObserver.disconnect(); lazyObserver = null;
             sentinel.style.display = 'none';
@@ -214,6 +291,12 @@ function renderConversation(conv) {
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
 
     activeFilters.clear();
+    dateFromFilter = null;
+    dateToFilter = null;
+    var dfFrom = document.getElementById('date-from');
+    var dfTo = document.getElementById('date-to');
+    if (dfFrom) dfFrom.value = '';
+    if (dfTo) dfTo.value = '';
     var filterBar = document.getElementById('conv-filter-bar');
     if (filterBar) {
         filterBar.style.display = 'flex';
@@ -274,12 +357,15 @@ function renderConversation(conv) {
     var sentinel = document.createElement('div');
     sentinel.id = 'lazy-sentinel';
     sentinel.className = 'lazy-sentinel';
-    var remaining = conv.messages.length - lazyOffset;
+    var remaining = getActiveMessages().length - lazyOffset;
     if (remaining > 0) sentinel.textContent = remaining + ' more\u2026';
     container.appendChild(sentinel);
 
     requestAnimationFrame(function() { setupLazyObserver(messagesDiv); });
+    updateFilterStatus();
 
-    document.getElementById('export-btn').disabled = false;
-    document.getElementById('copy-btn').disabled = false;
+    var exportBtn = document.getElementById('export-btn');
+    var copyBtn = document.getElementById('copy-btn');
+    if (exportBtn) exportBtn.disabled = false;
+    if (copyBtn) copyBtn.disabled = false;
 }

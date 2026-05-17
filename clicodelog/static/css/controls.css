@@ -92,7 +92,30 @@
 .role-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
 .role-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
 
-.conv-nav-btns { display: flex; gap: 4px; }
+.conv-nav-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.conv-date-group {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+}
+.conv-date-label {
+    font-size: 11px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.4px;
+}
+.conv-date-input {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 3px 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+.conv-date-input:focus { outline: none; border-color: var(--accent-blue); }
+.conv-filter-status {
+    font-size: 11px; color: var(--accent-orange);
+    font-family: var(--font-mono);
+}
 
 [data-theme="light"] .source-selector select { background: var(--bg-secondary); }
 [data-theme="light"] .session-filters select { background: var(--bg-secondary); }

@@ -129,7 +129,16 @@
                     <button class="role-btn" data-filter="assistant" onclick="toggleRoleFilter('assistant')">AI</button>
                     <button class="role-btn" data-filter="tools" onclick="toggleRoleFilter('tools')">Tools</button>
                 </div>
+                <div class="conv-date-group">
+                    <label class="conv-date-label">From</label>
+                    <input type="date" id="date-from" class="conv-date-input" onchange="applyDateFilter()">
+                    <label class="conv-date-label">To</label>
+                    <input type="date" id="date-to" class="conv-date-input" onchange="applyDateFilter()">
+                    <button class="conv-ctrl-btn" onclick="clearDateFilter()" title="Clear date filter">Clear</button>
+                    <span class="conv-filter-status" id="conv-filter-status"></span>
+                </div>
                 <div class="conv-nav-btns">
+                    <button class="conv-ctrl-btn" onclick="loadAllMessages()" title="Render every remaining message now">&#9759; Load All</button>
                     <button class="conv-ctrl-btn" onclick="scrollConvToTop()" title="Scroll to top">&#8593; Top</button>
                     <button class="conv-ctrl-btn" onclick="scrollConvToBottom()" title="Scroll to bottom">&#8595; End</button>
                     <button class="conv-ctrl-btn" id="fullscreen-btn" onclick="openFocusView()" title="Open this conversation in a focused new tab">&#10696; Focus</button>

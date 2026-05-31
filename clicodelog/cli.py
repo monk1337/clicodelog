@@ -34,6 +34,12 @@ def main():
         help="Skip initial data sync on startup",
     )
     parser.add_argument(
+        "--folder", "-f",
+        type=str,
+        default=None,
+        help="Only show projects whose name contains this text (e.g. --folder ceszero)",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Run in debug mode",
@@ -49,6 +55,7 @@ def main():
         port=args.port,
         skip_sync=args.no_sync,
         debug=args.debug,
+        folder=args.folder,
     )
 
 

@@ -16,3 +16,6 @@ var activeFilters = new Set();
 var lazyObserver = null;
 var dateFromFilter = null;  // ms epoch, start-of-day, or null
 var dateToFilter = null;    // ms epoch, end-of-day, or null
+var convSearchQuery = '';   // in-conversation find query
+var convSearchMatches = []; // matched .message elements
+var convSearchIndex = -1;   // current match position

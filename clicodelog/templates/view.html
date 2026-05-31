@@ -83,6 +83,11 @@
             </div>
         </div>
         <div class="conv-filter-bar" id="conv-filter-bar" style="display:none">
+            <div class="role-filter-group">
+                <button class="role-btn" data-filter="user" onclick="toggleRoleFilter('user')">User</button>
+                <button class="role-btn" data-filter="assistant" onclick="toggleRoleFilter('assistant')">AI</button>
+                <button class="role-btn" data-filter="tools" onclick="toggleRoleFilter('tools')">Tools</button>
+            </div>
             <div class="conv-date-group">
                 <label class="conv-date-label">From</label>
                 <input type="date" id="date-from" class="conv-date-input">
@@ -93,8 +98,16 @@
                 <span class="conv-filter-loading" id="conv-filter-loading" style="display:none"><span class="mini-spinner"></span>Filtering…</span>
                 <span class="conv-filter-status" id="conv-filter-status"></span>
             </div>
+            <div class="conv-search-group">
+                <input type="text" id="conv-search-input" class="conv-search-input" placeholder="Find in this conversation…" onkeydown="if(event.key==='Enter'){event.shiftKey?convSearchPrev():convSearchNext();}">
+                <button class="conv-ctrl-btn" onclick="runConvSearch()" title="Search the full conversation">Find</button>
+                <button class="conv-ctrl-btn" onclick="convSearchPrev()" title="Previous match">&#8593;</button>
+                <button class="conv-ctrl-btn" onclick="convSearchNext()" title="Next match">&#8595;</button>
+                <button class="conv-ctrl-btn" onclick="clearConvSearch()" title="Clear find">&#10005;</button>
+                <span class="conv-filter-status" id="conv-search-status"></span>
+            </div>
             <div class="conv-nav-btns">
-                <button class="conv-ctrl-btn" onclick="loadAllMessages()" title="Render every remaining message now">&#9759; Load All</button>
+                <button class="conv-ctrl-btn" id="load-all-btn" onclick="loadAllMessages()" title="Render every remaining message now">&#9759; Load All</button>
             </div>
         </div>
         <div id="conversation-content">

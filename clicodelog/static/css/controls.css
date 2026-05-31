@@ -121,6 +121,19 @@
     font-size: 11px; color: var(--text-secondary);
     font-family: var(--font-mono);
 }
+
+.conv-search-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.conv-search-input {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 3px 8px;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: var(--font-ui);
+    min-width: 200px;
+}
+.conv-search-input:focus { outline: none; border-color: var(--accent-blue); }
 .mini-spinner {
     width: 10px; height: 10px;
     border: 2px solid var(--border-color);

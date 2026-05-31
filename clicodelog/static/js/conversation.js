@@ -17,7 +17,15 @@ function toggleRoleFilter(filter) {
     document.querySelectorAll('.role-btn').forEach(function(btn) {
         btn.classList.toggle('active', activeFilters.has(btn.getAttribute('data-filter')));
     });
-    applyRoleFilter();
+    // With a filter active, the user expects to see every matching message,
+    // not just matches within the lazy-loaded window. Load the rest first.
+    if (activeFilters.size > 0 && currentConversation &&
+        typeof getActiveMessages === 'function' &&
+        lazyOffset < getActiveMessages().length) {
+        loadAllMessages();
+    } else {
+        applyRoleFilter();
+    }
 }
 
 function getScrollEl() {
@@ -143,23 +151,137 @@ function rerenderCurrentConversation() {
     updateFilterStatus();
 }
 
-function loadAllMessages() {
-    if (!currentConversation) return;
+function loadAllMessages(onComplete) {
+    if (!currentConversation) { if (onComplete) onComplete(); return; }
     var messagesDiv = document.getElementById('messages-container');
-    if (!messagesDiv) return;
+    if (!messagesDiv) { if (onComplete) onComplete(); return; }
     var msgs = getActiveMessages();
-    lazyBatchSize = Math.max(lazyBatchSize, msgs.length);
-    while (lazyOffset < msgs.length) {
-        renderNextBatch(messagesDiv);
+    var loadAllBtn = document.getElementById('load-all-btn');
+
+    // Already fully rendered — just run the callback (or scroll to bottom).
+    if (lazyOffset >= msgs.length) {
+        if (onComplete) onComplete();
+        else requestAnimationFrame(scrollConvToBottom);
+        return;
     }
+
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
     var sentinel = document.getElementById('lazy-sentinel');
-    if (sentinel) { sentinel.style.display = 'none'; }
-    // Two RAFs give the browser a chance to lay out content-visibility blocks
-    // before we compute scrollHeight, so we actually land at the true bottom.
-    requestAnimationFrame(function() {
-        requestAnimationFrame(scrollConvToBottom);
+    if (loadAllBtn) loadAllBtn.disabled = true;
+
+    var CHUNK = 50;
+
+    function renderChunk() {
+        var end = Math.min(lazyOffset + CHUNK, msgs.length);
+        for (var i = lazyOffset; i < end; i++) {
+            messagesDiv.appendChild(buildMessageEl(msgs[i]));
+        }
+        lazyOffset = end;
+        if (sentinel) {
+            var remaining = msgs.length - lazyOffset;
+            sentinel.textContent = remaining > 0
+                ? ('Loading… ' + lazyOffset + ' / ' + msgs.length)
+                : '';
+            sentinel.style.display = remaining > 0 ? '' : 'none';
+        }
+        if (lazyOffset < msgs.length) {
+            // setTimeout(0) yields back to the browser so it can paint
+            // progress and remain responsive between chunks.
+            setTimeout(renderChunk, 0);
+        } else {
+            applyRoleFilter();
+            if (loadAllBtn) loadAllBtn.disabled = false;
+            if (onComplete) {
+                onComplete();
+            } else {
+                // scrollIntoView is reliable with content-visibility because
+                // the browser lays out and scrolls to the actual element.
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        var last = messagesDiv.lastElementChild;
+                        if (last && last.scrollIntoView) {
+                            last.scrollIntoView({ block: 'end', behavior: 'auto' });
+                        } else {
+                            var el = getScrollEl();
+                            el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
+                        }
+                    });
+                });
+            }
+        }
+    }
+    renderChunk();
+}
+
+// --- In-conversation find: searches the whole conversation, loading every
+// --- message first so matches outside the lazy window are still found.
+function runConvSearch() {
+    var input = document.getElementById('conv-search-input');
+    convSearchQuery = (input ? input.value : '').trim().toLowerCase();
+    if (!convSearchQuery) { clearConvSearch(); return; }
+    var status = document.getElementById('conv-search-status');
+    if (status) status.textContent = 'Searching…';
+    loadAllMessages(function() { applyConvSearch(); });
+}
+
+function applyConvSearch() {
+    convSearchMatches = [];
+    convSearchIndex = -1;
+    var mc = document.getElementById('messages-container');
+    if (!mc) return;
+    mc.querySelectorAll('.message').forEach(function(el) {
+        el.classList.remove('search-match', 'search-current');
+        if (convSearchQuery && el.textContent.toLowerCase().indexOf(convSearchQuery) !== -1) {
+            el.classList.add('search-match');
+            convSearchMatches.push(el);
+        }
     });
+    updateConvSearchStatus();
+    if (convSearchMatches.length) gotoConvMatch(0);
+}
+
+function gotoConvMatch(i) {
+    if (!convSearchMatches.length) return;
+    if (convSearchIndex >= 0 && convSearchMatches[convSearchIndex]) {
+        convSearchMatches[convSearchIndex].classList.remove('search-current');
+    }
+    convSearchIndex = (i % convSearchMatches.length + convSearchMatches.length) % convSearchMatches.length;
+    var el = convSearchMatches[convSearchIndex];
+    el.classList.add('search-current');
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    updateConvSearchStatus();
+}
+
+function convSearchNext() {
+    if (!convSearchMatches.length) { runConvSearch(); return; }
+    gotoConvMatch(convSearchIndex + 1);
+}
+
+function convSearchPrev() {
+    if (!convSearchMatches.length) { runConvSearch(); return; }
+    gotoConvMatch(convSearchIndex - 1);
+}
+
+function updateConvSearchStatus() {
+    var el = document.getElementById('conv-search-status');
+    if (!el) return;
+    if (!convSearchQuery) { el.textContent = ''; return; }
+    el.textContent = convSearchMatches.length
+        ? (convSearchIndex + 1) + ' / ' + convSearchMatches.length + ' matches'
+        : 'No matches';
+}
+
+function clearConvSearch() {
+    convSearchQuery = '';
+    convSearchMatches = [];
+    convSearchIndex = -1;
+    var input = document.getElementById('conv-search-input');
+    if (input) input.value = '';
+    var mc = document.getElementById('messages-container');
+    if (mc) mc.querySelectorAll('.message').forEach(function(el) {
+        el.classList.remove('search-match', 'search-current');
+    });
+    updateConvSearchStatus();
 }
 
 function openFocusView() {
@@ -322,10 +444,17 @@ function renderConversation(conv) {
     activeFilters.clear();
     dateFromFilter = null;
     dateToFilter = null;
+    convSearchQuery = '';
+    convSearchMatches = [];
+    convSearchIndex = -1;
     var dfFrom = document.getElementById('date-from');
     var dfTo = document.getElementById('date-to');
+    var dfSearch = document.getElementById('conv-search-input');
+    var dfSearchStatus = document.getElementById('conv-search-status');
     if (dfFrom) dfFrom.value = '';
     if (dfTo) dfTo.value = '';
+    if (dfSearch) dfSearch.value = '';
+    if (dfSearchStatus) dfSearchStatus.textContent = '';
     var filterBar = document.getElementById('conv-filter-bar');
     if (filterBar) {
         filterBar.style.display = 'flex';

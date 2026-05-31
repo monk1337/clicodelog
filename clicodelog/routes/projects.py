@@ -13,7 +13,17 @@ router = APIRouter()
 
 @router.get("/api/projects")
 async def api_projects(source: Optional[str] = None):
-    return get_projects(source or _sync.current_source)
+    projects = get_projects(source or _sync.current_source)
+    flt = _sync.folder_filter
+    if flt:
+        needle = flt.lower()
+        projects = [
+            p for p in projects
+            if needle in p.get("id", "").lower()
+            or needle in p.get("name", "").lower()
+            or needle in (p.get("custom_name") or "").lower()
+        ]
+    return projects
 
 
 @router.get("/api/projects/{project_id}/sessions")

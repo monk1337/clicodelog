@@ -48,12 +48,23 @@ def kill_process_on_port(port: int, max_retries: int = 3) -> bool:
     return False
 
 
-def run_server(host: str = "127.0.0.1", port: int = 6126, skip_sync: bool = False, debug: bool = False) -> None:
+def run_server(
+    host: str = "127.0.0.1",
+    port: int = 6126,
+    skip_sync: bool = False,
+    debug: bool = False,
+    folder: str | None = None,
+) -> None:
     from .app import app  # local import avoids circular dependency at module level
+    from . import sync as _sync
 
     print(BANNER)
     print("  AI Conversation History Viewer")
     print("=" * 60)
+
+    if folder:
+        _sync.folder_filter = folder
+        print(f"\n🔎 Folder filter active: only showing projects matching '{folder}'")
 
     if not kill_process_on_port(port):
         print(f"\n❌ Could not free port {port}. Try: lsof -ti:{port} | xargs kill -9")

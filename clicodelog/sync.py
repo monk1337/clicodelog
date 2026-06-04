@@ -125,6 +125,14 @@ def sync_data(source_id: str | None = None, silent: bool = False) -> bool:
 
         last_sync_time[source_id] = datetime.now()
 
+        # Keep the search index current right after the data changes.
+        try:
+            from .search_index import refresh_index
+            refresh_index(source_id)
+        except Exception as e:
+            if not silent:
+                print(f"  (index refresh skipped: {e})")
+
         if not silent:
             print(f"Synced {project_count} projects with {session_count} sessions")
         else:

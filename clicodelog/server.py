@@ -87,6 +87,17 @@ def run_server(
     threading.Thread(target=background_sync, daemon=True).start()
     print("Background sync thread started.")
 
+    # Build/refresh the search index in the background so the first search is
+    # instant. Incremental — only changed files are re-read on later runs.
+    def _build_index():
+        try:
+            from .search_index import refresh_index
+            refresh_index()
+        except Exception as e:
+            print(f"(search index build skipped: {e})")
+
+    threading.Thread(target=_build_index, daemon=True).start()
+
     url = f"http://{host}:{port}"
     print(f"\nStarting server...")
     print(f"🌐 Opening {url} in your browser...")

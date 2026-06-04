@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from .. import sync as _sync
 from ..config import DATA_DIR, SOURCES
+from ..search_index import search_index
 from ..utils import encode_path_id, get_codex_cwd, get_gemini_project_hash
 
 router = APIRouter()
@@ -44,6 +45,14 @@ async def api_search(q: Optional[str] = None, source: Optional[str] = None):
     if not data_dir.exists():
         return []
 
+    # Fast path: metadata index (id / cwd / summary / project name). Instant,
+    # no file reads, auto-refreshed. If it returns hits we're done.
+    indexed = search_index(query, source_id)
+    if indexed:
+        return indexed[:50]
+
+    # Fallback: bounded full-text content scan for matches inside transcripts
+    # that the metadata index can't see.
     results = []
     seen = set()
 

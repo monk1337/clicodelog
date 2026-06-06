@@ -17,6 +17,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def no_cache_static(request: Request, call_next):
+    # Local dev tool: never let the browser cache JS/CSS/templates, so UI
+    # changes show up on a normal refresh instead of needing a hard reload.
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static") or path in ("/", "/view"):
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
 
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))

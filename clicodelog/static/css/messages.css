@@ -15,6 +15,11 @@
 .messages.filter-assistant .message.user { display: none; }
 .messages.filter-tools .message:not(.has-tools) { display: none; }
 
+/* Hide-tools toggle: hide the yellow tool boxes, and fully collapse any
+   message that is nothing but tool boxes (no text content). */
+body.hide-tool-boxes .tool-uses { display: none; }
+body.hide-tool-boxes .message.has-tools:not(.has-text) { display: none; }
+
 /* In-conversation find highlights */
 .message.search-match { border-left: 3px solid var(--accent-orange); padding-left: 9px; }
 .message.search-current {

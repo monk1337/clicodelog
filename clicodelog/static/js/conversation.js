@@ -302,10 +302,24 @@ function toggleAllThinking() {
     btn.querySelector('span:last-child').textContent = allThinkingExpanded ? 'Hide Thinking' : 'Show Thinking';
 }
 
+// Hide/show the yellow tool boxes (Bash, Read, etc.). When hidden, messages
+// that are nothing but a tool box collapse away entirely (CSS), so the
+// conversation reads cleanly without the command dumps.
+function toggleToolBoxes() {
+    var on = document.body.classList.toggle('hide-tool-boxes');
+    var btn = document.getElementById('tools-toggle-btn');
+    if (btn) {
+        btn.classList.toggle('active', on);
+        var label = btn.querySelector('span:last-child');
+        if (label) label.textContent = on ? 'Show Tools' : 'Hide Tools';
+    }
+}
+
 function buildMessageEl(msg) {
     var classes = 'message ' + msg.role;
     if (msg.tool_uses && msg.tool_uses.length > 0) classes += ' has-tools';
     if (msg.thinking) classes += ' has-thinking';
+    if (msg.content && msg.content.trim()) classes += ' has-text';
     var msgDiv = document.createElement('div');
     msgDiv.className = classes;
 

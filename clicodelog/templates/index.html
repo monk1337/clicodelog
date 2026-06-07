@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="/static/css/tags.css">
     <link rel="stylesheet" href="/static/css/misc.css">
 </head>
-<body>
+<body class="hide-tool-boxes">
     <!-- Top Controls -->
     <div class="top-controls">
         <div class="source-selector">
@@ -34,9 +34,9 @@
             <span class="icon">🧠</span>
             <span>Show Thinking</span>
         </button>
-        <button class="control-btn" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
+        <button class="control-btn active" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
             <span class="icon">🧰</span>
-            <span>Hide Tools</span>
+            <span>Show Tools</span>
         </button>
         <button class="control-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="View all pinned messages">
             <span class="icon">⭐</span>

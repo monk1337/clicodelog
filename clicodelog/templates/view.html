@@ -36,7 +36,7 @@
         .view-stubs { display: none; }
     </style>
 </head>
-<body>
+<body class="hide-tool-boxes">
     <!-- Search modal (reuses search.css from main app) -->
     <div class="search-modal" id="search-modal">
         <div class="search-modal-header">
@@ -69,8 +69,8 @@
                 <button class="control-btn" id="thinking-toggle-btn" onclick="toggleAllThinking()" title="Toggle all thinking blocks">
                     <span class="icon">🧠</span><span>Show Thinking</span>
                 </button>
-                <button class="control-btn" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
-                    <span class="icon">🧰</span><span>Hide Tools</span>
+                <button class="control-btn active" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
+                    <span class="icon">🧰</span><span>Show Tools</span>
                 </button>
                 <button class="control-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="View all pinned messages">
                     <span class="icon">⭐</span><span>Bookmarks</span>

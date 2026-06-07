@@ -38,6 +38,10 @@
             <span class="icon">🧰</span>
             <span>Hide Tools</span>
         </button>
+        <button class="control-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="View all pinned messages">
+            <span class="icon">⭐</span>
+            <span>Bookmarks</span>
+        </button>
         <button class="control-btn" id="search-btn" onclick="toggleSearch()" title="Search conversations">
             <span class="icon">🔍</span>
             <span>Search</span>
@@ -72,6 +76,14 @@
         <div class="search-modal-content" id="search-results">
             <div class="no-search-results">Type to search across conversations</div>
         </div>
+    </div>
+
+    <div class="bookmarks-panel" id="bookmarks-panel">
+        <div class="bookmarks-header">
+            <h3>⭐ Bookmarks</h3>
+            <span class="bookmarks-close" onclick="closeBookmarksPanel()">✕</span>
+        </div>
+        <div class="bookmarks-list" id="bookmarks-list"></div>
     </div>
 
     <div class="app">
@@ -180,8 +192,10 @@
     <script src="/static/js/projects.js"></script>
     <script src="/static/js/sessions.js"></script>
     <script src="/static/js/conversation.js"></script>
+    <script src="/static/js/bookmarks.js"></script>
     <script src="/static/js/search.js"></script>
     <script src="/static/js/clipboard.js"></script>
     <script src="/static/js/main.js"></script>
+    <script>if (typeof loadBookmarks === 'function') loadBookmarks();</script>
 </body>
 </html>

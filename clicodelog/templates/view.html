@@ -51,6 +51,14 @@
         </div>
     </div>
 
+    <div class="bookmarks-panel" id="bookmarks-panel">
+        <div class="bookmarks-header">
+            <h3>⭐ Bookmarks</h3>
+            <span class="bookmarks-close" onclick="closeBookmarksPanel()">✕</span>
+        </div>
+        <div class="bookmarks-list" id="bookmarks-list"></div>
+    </div>
+
     <div class="view-shell">
         <div class="view-bar">
             <div style="display:flex; align-items:center; gap:12px; min-width:0;">
@@ -63,6 +71,9 @@
                 </button>
                 <button class="control-btn" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
                     <span class="icon">🧰</span><span>Hide Tools</span>
+                </button>
+                <button class="control-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="View all pinned messages">
+                    <span class="icon">⭐</span><span>Bookmarks</span>
                 </button>
                 <button class="control-btn" id="search-btn" onclick="toggleSearch()" title="Search conversations">
                     <span class="icon">🔍</span><span>Search</span>
@@ -124,6 +135,7 @@
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/theme.js"></script>
     <script src="/static/js/conversation.js"></script>
+    <script src="/static/js/bookmarks.js"></script>
     <script src="/static/js/clipboard.js"></script>
     <script src="/static/js/sync.js"></script>
     <script src="/static/js/search.js"></script>
@@ -133,11 +145,13 @@
             currentProjectId = p.get('project');
             currentSessionId = p.get('session');
             currentSource = p.get('source') || 'claude-code';
+            var jumpAnchor = p.get('anchor');
             var titleEl = document.getElementById('view-title');
             titleEl.textContent = currentSessionId || 'Conversation';
 
             // Re-fetch sync status now that currentSource is set
             if (typeof fetchSyncStatus === 'function') fetchSyncStatus();
+            if (typeof loadBookmarks === 'function') loadBookmarks();
 
             // Wire up search input + Cmd/Ctrl+K + Esc to close modal
             var searchInput = document.getElementById('global-search-input');
@@ -181,6 +195,14 @@
                         return;
                     }
                     renderConversation(conv);
+                    // If we arrived via a bookmark, load all then jump to it.
+                    if (jumpAnchor && typeof loadAllMessages === 'function') {
+                        loadAllMessages(function() {
+                            requestAnimationFrame(function() {
+                                if (typeof scrollToAnchor === 'function') scrollToAnchor(jumpAnchor);
+                            });
+                        });
+                    }
                 })
                 .catch(function(e) {
                     document.getElementById('conversation-content').innerHTML =

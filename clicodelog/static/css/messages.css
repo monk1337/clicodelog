@@ -20,6 +20,22 @@
 body.hide-tool-boxes .tool-uses { display: none; }
 body.hide-tool-boxes .message.has-tools:not(.has-text) { display: none; }
 
+/* Pin / bookmark button on each message */
+.pin-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 15px; line-height: 1; padding: 0 4px;
+    color: var(--text-muted); transition: color 0.15s, transform 0.1s;
+}
+.pin-btn:hover { color: var(--accent-orange); transform: scale(1.2); }
+.pin-btn.pinned { color: var(--accent-orange); }
+
+/* Flash when jumping to a bookmarked message */
+@keyframes bookmarkFlash {
+    0%, 100% { box-shadow: none; }
+    30% { box-shadow: 0 0 0 3px var(--accent-orange); }
+}
+.message.bookmark-flash { animation: bookmarkFlash 1.5s ease; border-radius: 6px; }
+
 /* In-conversation find highlights */
 .message.search-match { border-left: 3px solid var(--accent-orange); padding-left: 9px; }
 .message.search-current {

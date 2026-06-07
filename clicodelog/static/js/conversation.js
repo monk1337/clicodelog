@@ -174,7 +174,7 @@ function loadAllMessages(onComplete) {
     function renderChunk() {
         var end = Math.min(lazyOffset + CHUNK, msgs.length);
         for (var i = lazyOffset; i < end; i++) {
-            messagesDiv.appendChild(buildMessageEl(msgs[i]));
+            messagesDiv.appendChild(buildMessageEl(msgs[i], i));
         }
         lazyOffset = end;
         if (sentinel) {
@@ -315,13 +315,16 @@ function toggleToolBoxes() {
     }
 }
 
-function buildMessageEl(msg) {
+function buildMessageEl(msg, msgIndex) {
     var classes = 'message ' + msg.role;
     if (msg.tool_uses && msg.tool_uses.length > 0) classes += ' has-tools';
     if (msg.thinking) classes += ' has-thinking';
     if (msg.content && msg.content.trim()) classes += ' has-text';
     var msgDiv = document.createElement('div');
     msgDiv.className = classes;
+
+    var anchor = bookmarkAnchor(msg, msgIndex);
+    msgDiv.setAttribute('data-anchor', anchor);
 
     var msgHeader = document.createElement('div');
     msgHeader.className = 'message-header';
@@ -330,6 +333,16 @@ function buildMessageEl(msg) {
     roleSpan.className = 'message-role';
     roleSpan.textContent = msg.role;
     msgHeader.appendChild(roleSpan);
+
+    var pinBtn = document.createElement('button');
+    pinBtn.className = 'pin-btn' + (isBookmarked(anchor) ? ' pinned' : '');
+    pinBtn.title = 'Pin / bookmark this message';
+    pinBtn.textContent = isBookmarked(anchor) ? '★' : '☆';
+    pinBtn.onclick = function (e) {
+        e.stopPropagation();
+        toggleBookmark(msg, msgIndex, anchor, pinBtn);
+    };
+    msgHeader.appendChild(pinBtn);
 
     if (msg.model) {
         var badge = document.createElement('span');
@@ -416,7 +429,7 @@ function renderNextBatch(messagesDiv) {
     var msgs = getActiveMessages();
     var end = Math.min(lazyOffset + lazyBatchSize, msgs.length);
     for (var i = lazyOffset; i < end; i++) {
-        messagesDiv.appendChild(buildMessageEl(msgs[i]));
+        messagesDiv.appendChild(buildMessageEl(msgs[i], i));
     }
     lazyOffset = end;
     applyRoleFilter();
@@ -453,6 +466,7 @@ function renderConversation(conv) {
     });
     currentConversation = conv;
     lazyOffset = 0;
+    if (typeof refreshBookmarkSet === 'function') refreshBookmarkSet();
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
 
     activeFilters.clear();

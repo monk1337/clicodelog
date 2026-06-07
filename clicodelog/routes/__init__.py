@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .bookmarks import router as bookmarks_router
 from .export import router as export_router
 from .projects import router as projects_router
 from .search import router as search_router
@@ -12,3 +13,4 @@ router.include_router(projects_router)
 router.include_router(search_router)
 router.include_router(export_router)
 router.include_router(sync_router)
+router.include_router(bookmarks_router)

@@ -89,7 +89,14 @@
     <div class="app">
         <!-- Projects Panel -->
         <div class="panel" id="projects-panel" style="width: 280px; min-width: 180px; max-width: 500px; flex-shrink: 0;">
-            <div class="panel-header"><h2>Projects</h2></div>
+            <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <h2>Projects</h2>
+                <select id="project-sort" onchange="changeProjectSort(this.value)" title="Sort projects" style="font-size:11px; padding:3px 6px; background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; cursor:pointer;">
+                    <option value="name">Name (A–Z)</option>
+                    <option value="recent">Latest update</option>
+                    <option value="sessions">Most sessions</option>
+                </select>
+            </div>
             <div class="search-box">
                 <input type="text" id="project-search" placeholder="Search projects...">
             </div>

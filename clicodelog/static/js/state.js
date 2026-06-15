@@ -19,3 +19,4 @@ var dateToFilter = null;    // ms epoch, end-of-day, or null
 var convSearchQuery = '';   // in-conversation find query
 var convSearchMatches = []; // matched .message elements
 var convSearchIndex = -1;   // current match position
+var projectSort = 'name';   // 'name' | 'recent' | 'sessions'

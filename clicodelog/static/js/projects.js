@@ -43,11 +43,34 @@ async function loadProjects() {
     } catch (e) { setPanel('projects-list', emptyState('', 'Error loading projects')); }
 }
 
+function changeProjectSort(mode) {
+    projectSort = mode;
+    renderProjects(projects);
+}
+
+function fmtProjectDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString([], { year: '2-digit', month: 'short', day: 'numeric' });
+}
+
 function renderProjects(projectsList) {
     const container = document.getElementById('projects-list');
-    const filtered = activeTagFilter
+    var filtered = activeTagFilter
         ? projectsList.filter(function(p) { return p.tags && p.tags.includes(activeTagFilter); })
-        : projectsList;
+        : projectsList.slice();
+
+    filtered.sort(function(a, b) {
+        if (projectSort === 'recent') {
+            return (Date.parse(b.last_modified) || 0) - (Date.parse(a.last_modified) || 0);
+        }
+        if (projectSort === 'sessions') {
+            return (b.session_count || 0) - (a.session_count || 0);
+        }
+        return (a.custom_name || a.name).localeCompare(b.custom_name || b.name);
+    });
+
     container.textContent = '';
     if (filtered.length === 0) { container.appendChild(emptyState('', 'No projects found')); return; }
     filtered.forEach(function(project) {
@@ -64,7 +87,8 @@ function renderProjects(projectsList) {
         title.textContent = project.custom_name || project.name;
         const meta = document.createElement('div');
         meta.className = 'list-item-meta';
-        meta.textContent = project.session_count + ' sessions ';
+        var dateStr = fmtProjectDate(project.last_modified);
+        meta.textContent = project.session_count + ' sessions' + (dateStr ? '  ·  updated ' + dateStr : '') + ' ';
         (project.tags || []).forEach(function(t) {
             const chip = document.createElement('span');
             chip.className = 'tag-chip';

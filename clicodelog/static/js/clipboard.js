@@ -1,6 +1,6 @@
 function exportConversation() {
     if (!currentConversation) return;
-    var msgs = (typeof getActiveMessages === 'function') ? getActiveMessages() : currentConversation.messages;
+    var msgs = (typeof getChronologicalMessages === 'function') ? getChronologicalMessages() : currentConversation.messages;
     var text = buildConversationText(currentConversation, msgs);
     var suffix = (dateFromFilter || dateToFilter) ? '-filtered' : '';
     var blob = new Blob([text], { type: 'text/plain' });
@@ -16,7 +16,7 @@ function exportConversation() {
 
 async function copyConversation() {
     if (!currentConversation) return;
-    var msgs = (typeof getActiveMessages === 'function') ? getActiveMessages() : currentConversation.messages;
+    var msgs = (typeof getChronologicalMessages === 'function') ? getChronologicalMessages() : currentConversation.messages;
     try {
         await navigator.clipboard.writeText(buildConversationText(currentConversation, msgs));
         var btn = document.getElementById('copy-btn');

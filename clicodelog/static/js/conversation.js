@@ -73,7 +73,9 @@ function renderMarkdownInto(el, text) {
     }
 }
 
-function getActiveMessages() {
+// Chronological (oldest → newest), after date filtering. Used by export so
+// exports stay in natural order regardless of display direction.
+function getChronologicalMessages() {
     if (!currentConversation) return [];
     var msgs = currentConversation.messages;
     if (dateFromFilter == null && dateToFilter == null) return msgs;
@@ -85,6 +87,24 @@ function getActiveMessages() {
         if (dateToFilter != null && t > dateToFilter) return false;
         return true;
     });
+}
+
+// Display order — what the conversation pane renders. Honors the newest/oldest
+// toggle. Default: newest first (reversed).
+function getActiveMessages() {
+    var msgs = getChronologicalMessages();
+    if (msgOrder === 'newest') return msgs.slice().reverse();
+    return msgs;
+}
+
+function toggleMsgOrder() {
+    msgOrder = (msgOrder === 'newest') ? 'oldest' : 'newest';
+    var btn = document.getElementById('msg-order-btn');
+    if (btn) {
+        var label = btn.querySelector('span:last-child') || btn;
+        label.textContent = (msgOrder === 'newest') ? 'Newest first' : 'Oldest first';
+    }
+    rerenderCurrentConversation();
 }
 
 function updateFilterStatus() {

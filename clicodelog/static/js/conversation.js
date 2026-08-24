@@ -298,7 +298,10 @@ function rerenderCurrentConversation() {
     var remaining = msgs.length - lazyOffset;
     sentinel.style.display = remaining > 0 ? '' : 'none';
     sentinel.textContent = remaining > 0 ? (remaining + ' more…') : '';
-    requestAnimationFrame(function() { setupLazyObserver(messagesDiv); });
+    requestAnimationFrame(function() {
+        setupLazyObserver(messagesDiv);
+        setupTopObserver(messagesDiv);
+    });
     updateFilterStatus();
 }
 
@@ -482,7 +485,14 @@ async function openAtAnchor(uuid, opts) {
         // the point of jumping straight to the message.
         renderLoadedMessages(function() {
             requestAnimationFrame(function() {
-                requestAnimationFrame(function() { scrollToAnchor(uuid); });
+                requestAnimationFrame(function() {
+                    scrollToAnchor(uuid, true);
+                    // Both edges start filling in as soon as the short window
+                    // is on screen. Re-assert the position a couple of times so
+                    // the bookmarked message stays put while they land.
+                    setTimeout(function() { scrollToAnchor(uuid, true); }, 400);
+                    setTimeout(function() { scrollToAnchor(uuid, true); }, 1200);
+                });
             });
         });
         return true;
@@ -851,27 +861,42 @@ function markConversationComplete() {
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
 }
 
-async function fetchNextConversationPage() {
-    if (convFetchInFlight) return;
-    if (!hasMoreOnServer()) { markConversationComplete(); return; }
+// Load whichever end of the session an edge needs.
+//
+// getActiveMessages() is reversed when the order is newest-first, so which
+// server direction extends the top of the list depends on that order:
+//   newest-first  -> top = newer messages, bottom = older
+//   oldest-first  -> top = older messages, bottom = newer
+async function loadEdge(edge) {
+    if (convFetchInFlight || !currentConversation) return;
+    if (currentConversation.total_messages == null) return;
+
+    var wantOlder = (edge === 'top') ? (msgOrder !== 'newest') : (msgOrder === 'newest');
+    if (wantOlder ? !hasOlderOnServer() : !hasNewerOnServer()) {
+        if (edge === 'bottom') markConversationComplete();
+        else markTopComplete();
+        return;
+    }
+
     convFetchInFlight = true;
     var seq = sessionRequestSeq;
     try {
-        // Newest-first reads backwards through the session; fall back to the
-        // other direction when this one is exhausted.
-        var back = msgOrder === 'newest' ? hasOlderOnServer() : !hasNewerOnServer();
-        var nextOffset = back ? Math.max(0, convWindowStart - CONV_PAGE) : convWindowEnd;
-        var wanted = back
-            ? convWindowStart - nextOffset
-            : Math.min(CONV_PAGE, currentConversation.total_messages - convWindowEnd);
-        if (wanted <= 0) { markConversationComplete(); return; }
+        var nextOffset, wanted;
+        if (wantOlder) {
+            nextOffset = Math.max(0, convWindowStart - CONV_PAGE);
+            wanted = convWindowStart - nextOffset;
+        } else {
+            nextOffset = convWindowEnd;
+            wanted = Math.min(CONV_PAGE, currentConversation.total_messages - convWindowEnd);
+        }
+        if (wanted <= 0) return;
 
         var url = '/api/projects/' + encodeURIComponent(currentProjectId) +
             '/sessions/' + encodeURIComponent(currentSessionId) +
             '?source=' + encodeURIComponent(currentSource) +
             '&limit=' + wanted + '&offset=' + nextOffset;
         var r = await fetch(url);
-        if (seq !== sessionRequestSeq) return;      // switched session mid-flight
+        if (seq !== sessionRequestSeq) return;
         if (!r.ok) return;
         var page = await r.json();
         if (seq !== sessionRequestSeq) return;
@@ -879,7 +904,7 @@ async function fetchNextConversationPage() {
 
         var rawLen = page.messages.length;
         var clean = stripProtocolMessages(page.messages);
-        if (back) {
+        if (wantOlder) {
             currentConversation.messages = clean.concat(currentConversation.messages);
             convWindowStart = page.offset;
         } else {
@@ -889,16 +914,80 @@ async function fetchNextConversationPage() {
         currentConversation.total_messages = page.total_messages;
 
         var messagesDiv = document.getElementById('messages-container');
-        if (messagesDiv) {
+        if (!messagesDiv) return;
+
+        if (edge === 'top') {
+            prependRendered(messagesDiv, clean.length);
+        } else {
             renderNextBatch(messagesDiv);
-            requestAnimationFrame(function() { setupLazyObserver(messagesDiv); });
         }
+        requestAnimationFrame(function() {
+            setupLazyObserver(messagesDiv);
+            setupTopObserver(messagesDiv);
+        });
         updateFilterStatus();
     } catch (e) {
         // Leave the sentinel in place; scrolling again retries.
     } finally {
         convFetchInFlight = false;
     }
+}
+
+// The new messages landed at the FRONT of getActiveMessages(), so every
+// already-rendered node shifts down by n. Insert the new nodes above and hold
+// the viewport still, otherwise the content the user is reading jumps away.
+function prependRendered(messagesDiv, n) {
+    if (n <= 0) return;
+    var msgs = getActiveMessages();
+    var scroller = getScrollEl();
+    var heightBefore = scroller.scrollHeight;
+    var first = messagesDiv.firstChild;
+
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < n; i++) {
+        frag.appendChild(buildMessageEl(msgs[i], i));
+    }
+    messagesDiv.insertBefore(frag, first);
+    lazyOffset += n;
+    applyRoleFilter();
+
+    var delta = scroller.scrollHeight - heightBefore;
+    if (delta) scroller.scrollTop += delta;
+}
+
+// Kept for callers that just want "more, in the reading direction".
+function fetchNextConversationPage() {
+    return loadEdge('bottom');
+}
+
+function markTopComplete() {
+    var s = document.getElementById('lazy-sentinel-top');
+    if (s) { s.style.display = 'none'; s.textContent = ''; }
+    if (topObserver) { topObserver.disconnect(); topObserver = null; }
+}
+
+function setupTopObserver(messagesDiv) {
+    if (topObserver) { topObserver.disconnect(); topObserver = null; }
+    var sentinel = document.getElementById('lazy-sentinel-top');
+    if (!sentinel || !currentConversation) return;
+
+    var wantOlder = msgOrder !== 'newest';
+    var more = wantOlder ? hasOlderOnServer() : hasNewerOnServer();
+    if (!more) { markTopComplete(); return; }
+
+    sentinel.style.display = '';
+    sentinel.textContent = wantOlder ? 'Earlier messages…' : 'Newer messages…';
+
+    var scrollRoot = document.getElementById('conversation-content');
+    if (scrollRoot) {
+        var oy = window.getComputedStyle(scrollRoot).overflowY;
+        if (oy !== 'auto' && oy !== 'scroll') scrollRoot = null;
+    }
+    topObserver = new IntersectionObserver(function(entries) {
+        if (!entries[0].isIntersecting) return;
+        loadEdge('top');
+    }, { root: scrollRoot, rootMargin: '600px' });
+    topObserver.observe(sentinel);
 }
 
 // Empty user protocol messages (tool-result acknowledgements with no content)
@@ -1019,6 +1108,14 @@ function renderConversation(conv) {
         });
         container.appendChild(summDiv);
     }
+
+    // A sentinel above the list as well as below it. With only a bottom one,
+    // the list could grow in a single direction — after jumping to a bookmark
+    // you sit mid-session and scrolling up hit the top of the window and stopped.
+    var topSentinel = document.createElement('div');
+    topSentinel.id = 'lazy-sentinel-top';
+    topSentinel.className = 'lazy-sentinel';
+    container.appendChild(topSentinel);
 
     var messagesDiv = document.createElement('div');
     messagesDiv.className = 'messages';

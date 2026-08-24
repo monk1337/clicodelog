@@ -132,10 +132,12 @@ function renderBookmarksPanel() {
     });
 }
 
-function scrollToAnchor(anchor) {
+function scrollToAnchor(anchor, instant) {
     var el = document.querySelector('.message[data-anchor="' + (window.CSS && CSS.escape ? CSS.escape(anchor) : anchor) + '"]');
     if (el) {
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        // A smooth scroll gets disrupted when a page is prepended mid-flight,
+        // so an anchored jump positions instantly and re-asserts afterwards.
+        el.scrollIntoView({ block: 'center', behavior: instant ? 'auto' : 'smooth' });
         el.classList.add('bookmark-flash');
         setTimeout(function () { el.classList.remove('bookmark-flash'); }, 1600);
         return true;

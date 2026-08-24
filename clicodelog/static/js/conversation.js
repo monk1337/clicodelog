@@ -112,7 +112,11 @@ function shortPath(cwd) {
 }
 
 function formatTokens(n) {
-    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    // Sessions here reach tens of billions of tokens once cache reads are
+    // counted, and capping the scale at M rendered that as "30269.4M".
+    if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T';
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
     if (n >= 1000) return Math.round(n / 1000) + 'K';
     return String(n);
 }
@@ -905,6 +909,19 @@ function stripProtocolMessages(msgs) {
     });
 }
 
+// Whole-session token usage, as recorded in the metadata index. The listing
+// stores it with short keys; normalise to the shape totalTokens() expects.
+function indexedSessionUsage() {
+    var s = (currentSessions || []).find(function(x) { return x.id === currentSessionId; });
+    if (!s || !s.usage || s.usage.input === undefined) return null;
+    return {
+        input_tokens: s.usage.input || 0,
+        output_tokens: s.usage.output || 0,
+        cache_read_input_tokens: s.usage.cache_read || 0,
+        cache_creation_input_tokens: s.usage.cache_creation || 0,
+    };
+}
+
 function renderConversation(conv) {
     // Record where this window sits in the session BEFORE filtering shrinks it.
     convWindowStart = conv.offset || 0;
@@ -959,14 +976,27 @@ function renderConversation(conv) {
     h1.textContent = 'Session: ' + conv.session_id;
     var metaRow = document.createElement('div');
     metaRow.className = 'conversation-meta';
+    // Report the SESSION's size, not the loaded window's. Showing
+    // conv.messages.length here made a 91,660-message session read as "698
+    // messages", which looks exactly like the conversation failed to load.
+    var sessionTotal_ = (conv.total_messages != null) ? conv.total_messages : conv.messages.length;
     var countSpan = document.createElement('span');
-    countSpan.textContent = conv.messages.length + ' messages';
+    countSpan.textContent = sessionTotal_.toLocaleString() + ' messages';
+    if (conv.total_messages != null && conv.messages.length < conv.total_messages) {
+        countSpan.title = 'Showing the most recent ' + conv.messages.length.toLocaleString() +
+            '; scroll to load earlier ones';
+    }
     metaRow.appendChild(countSpan);
-    if (sessionTokens > 0) {
+
+    // Token totals come from the index, which covers the whole session. Summing
+    // the loaded window only would under-report it the same way.
+    var indexed = indexedSessionUsage();
+    var tokens = indexed ? totalTokens(indexed) : sessionTokens;
+    if (tokens > 0) {
         var tokSpan = document.createElement('span');
         tokSpan.className = 'total-tokens';
-        tokSpan.textContent = formatTokens(sessionTokens) + ' tokens';
-        tokSpan.title = tokenBreakdown(sessionBreakdown);
+        tokSpan.textContent = formatTokens(tokens) + ' tokens';
+        tokSpan.title = tokenBreakdown(indexed || sessionBreakdown);
         metaRow.appendChild(tokSpan);
     }
     header.appendChild(h1);

@@ -229,9 +229,13 @@ async function selectSession(sessionId, opts) {
 
 function jumpToAnchor(uuid) {
     if (!uuid) return;
-    if (typeof loadAllMessages === 'function') {
+    // Already on screen? Just scroll.
+    if (scrollToAnchor(uuid)) return;
+    // Otherwise fetch a window centred on it rather than loading the whole
+    // session to reach one message.
+    if (typeof openAtAnchor === 'function') {
+        openAtAnchor(uuid);
+    } else if (typeof loadAllMessages === 'function') {
         loadAllMessages(function() { scrollToAnchor(uuid); });
-    } else {
-        scrollToAnchor(uuid);
     }
 }

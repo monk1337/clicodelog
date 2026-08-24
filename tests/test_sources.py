@@ -340,3 +340,70 @@ def test_backward_paging_covers_the_session_exactly(tmp_path, monkeypatch):
         start = page["offset"]
     assert start == 0, "backward paging must reach the beginning"
     assert end - start == total, "the walk must cover the session exactly once"
+
+
+def test_bookmark_opens_on_a_window_centred_on_its_message(tmp_path, monkeypatch):
+    """A bookmark used to reach its message by rendering the whole session
+    first, which is unusable on a long conversation. The server now resolves the
+    uuid and returns a small window centred on it."""
+    root = tmp_path / "data"
+    proj = root / "claude-code" / "-Users-x-my-app"
+    rows = [{"type": "summary", "summary": "s"}]
+    for i in range(400):
+        rows.append({"type": "user", "timestamp": "2026-08-01T10:00:00Z", "uuid": f"u{i}",
+                     "message": {"role": "user", "content": f"m{i}"}})
+    _write_jsonl(proj / "long.jsonl", rows)
+
+    monkeypatch.setattr("clicodelog.config.DATA_DIR", root)
+    monkeypatch.setattr("clicodelog.conversation.DATA_DIR", root)
+    from clicodelog import conversation, window
+    conversation.clear_cache()
+    window.clear_cache()
+
+    conv = conversation.get_conversation("-Users-x-my-app", "long", "claude-code",
+                                         limit=41, around_uuid="u300")
+    assert conv["total_messages"] == 400
+    assert conv["anchor_index"] == 300
+    assert conv["offset"] == 280, "window must be centred on the anchor"
+    assert len(conv["messages"]) == 41
+    uuids = [m["uuid"] for m in conv["messages"]]
+    assert "u300" in uuids
+    # ~20 either side, which is what makes the jump instant.
+    assert uuids[0] == "u280" and uuids[-1] == "u320"
+
+
+def test_anchor_near_the_end_still_returns_a_full_window(tmp_path, monkeypatch):
+    root = tmp_path / "data"
+    proj = root / "claude-code" / "-Users-x-my-app"
+    rows = [{"type": "user", "timestamp": "2026-08-01T10:00:00Z", "uuid": f"u{i}",
+             "message": {"role": "user", "content": f"m{i}"}} for i in range(100)]
+    _write_jsonl(proj / "s.jsonl", rows)
+
+    monkeypatch.setattr("clicodelog.config.DATA_DIR", root)
+    monkeypatch.setattr("clicodelog.conversation.DATA_DIR", root)
+    from clicodelog import conversation, window
+    conversation.clear_cache()
+    window.clear_cache()
+
+    conv = conversation.get_conversation("-Users-x-my-app", "s", "claude-code",
+                                         limit=21, around_uuid="u98")
+    assert len(conv["messages"]) == 21, "a window near the end must not be truncated"
+    assert conv["offset"] == 79
+    assert conv["anchor_index"] == 98
+
+
+def test_unknown_anchor_falls_back_without_error(tmp_path, monkeypatch):
+    root = tmp_path / "data"
+    proj = root / "claude-code" / "-Users-x-my-app"
+    _write_jsonl(proj / "s.jsonl", CLAUDE_LINES)
+    monkeypatch.setattr("clicodelog.config.DATA_DIR", root)
+    monkeypatch.setattr("clicodelog.conversation.DATA_DIR", root)
+    from clicodelog import conversation, window
+    conversation.clear_cache()
+    window.clear_cache()
+
+    conv = conversation.get_conversation("-Users-x-my-app", "s", "claude-code",
+                                         limit=10, around_uuid="does-not-exist")
+    assert conv["anchor_index"] == -1
+    assert "error" not in conv
+    assert conv["messages"], "an unknown anchor must still return the session"

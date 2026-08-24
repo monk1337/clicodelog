@@ -298,25 +298,115 @@ function rerenderCurrentConversation() {
     updateFilterStatus();
 }
 
-function loadAllMessages(onComplete) {
+// Pull every page the server still holds, so "Load All" means the whole
+// session again — not merely everything already downloaded.
+async function fetchWholeSession(onProgress) {
+    if (!currentConversation || currentConversation.total_messages == null) return;
+    var guard = 0;
+    while ((hasOlderOnServer() || hasNewerOnServer()) && guard < 5000) {
+        guard++;
+        var back = hasOlderOnServer();
+        var nextOffset = back ? Math.max(0, convWindowStart - LOAD_ALL_PAGE) : convWindowEnd;
+        var wanted = back
+            ? convWindowStart - nextOffset
+            : Math.min(LOAD_ALL_PAGE, currentConversation.total_messages - convWindowEnd);
+        if (wanted <= 0) break;
+
+        var seq = sessionRequestSeq;
+        var url = '/api/projects/' + encodeURIComponent(currentProjectId) +
+            '/sessions/' + encodeURIComponent(currentSessionId) +
+            '?source=' + encodeURIComponent(currentSource) +
+            '&limit=' + wanted + '&offset=' + nextOffset;
+        var r = await fetch(url);
+        if (seq !== sessionRequestSeq) return;          // user moved on
+        if (!r.ok) break;
+        var page = await r.json();
+        if (seq !== sessionRequestSeq) return;
+        if (!page || !Array.isArray(page.messages) || !page.messages.length) break;
+
+        var rawLen = page.messages.length;
+        var clean = stripProtocolMessages(page.messages);
+        if (back) {
+            currentConversation.messages = clean.concat(currentConversation.messages);
+            convWindowStart = page.offset;
+        } else {
+            currentConversation.messages = currentConversation.messages.concat(clean);
+            convWindowEnd = page.offset + rawLen;
+        }
+        currentConversation.total_messages = page.total_messages;
+        if (onProgress) {
+            onProgress(convWindowEnd - convWindowStart, currentConversation.total_messages);
+        }
+    }
+}
+
+// Render every message already in memory. No fetching — used by the anchored
+// jump, which deliberately holds only a small window.
+function renderLoadedMessages(onComplete) {
+    var messagesDiv = document.getElementById('messages-container');
+    if (!messagesDiv || !currentConversation) { if (onComplete) onComplete(); return; }
+    var msgs = getActiveMessages();
+    var sentinel = document.getElementById('lazy-sentinel');
+
+    function chunk() {
+        var end = Math.min(lazyOffset + 100, msgs.length);
+        for (var i = lazyOffset; i < end; i++) {
+            messagesDiv.appendChild(buildMessageEl(msgs[i], i));
+        }
+        lazyOffset = end;
+        if (lazyOffset < msgs.length) {
+            setTimeout(chunk, 0);
+        } else {
+            applyRoleFilter();
+            if (sentinel) {
+                var more = hasMoreOnServer();
+                sentinel.style.display = more ? '' : 'none';
+                sentinel.textContent = more ? 'Load more…' : '';
+            }
+            if (onComplete) onComplete();
+        }
+    }
+    chunk();
+}
+
+async function loadAllMessages(onComplete) {
     if (!currentConversation) { if (onComplete) onComplete(); return; }
     var messagesDiv = document.getElementById('messages-container');
     if (!messagesDiv) { if (onComplete) onComplete(); return; }
-    var msgs = getActiveMessages();
-    var loadAllBtn = document.getElementById('load-all-btn');
 
-    // Already fully rendered — just run the callback (or scroll to bottom).
+    var loadAllBtn = document.getElementById('load-all-btn');
+    var sentinel = document.getElementById('lazy-sentinel');
+    if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
+    if (loadAllBtn) loadAllBtn.disabled = true;
+
+    // Step 1: make sure the whole session is actually in memory.
+    if (hasMoreOnServer()) {
+        if (sentinel) {
+            sentinel.style.display = '';
+            sentinel.textContent = 'Fetching all ' +
+                currentConversation.total_messages.toLocaleString() + ' messages…';
+        }
+        try {
+            await fetchWholeSession(function(have, total) {
+                if (sentinel) {
+                    sentinel.textContent = 'Fetching ' + have.toLocaleString() +
+                        ' / ' + total.toLocaleString() + '…';
+                }
+            });
+        } catch (e) { /* fall through and render what we have */ }
+    }
+
+    // Step 2: render everything, yielding between chunks so the tab stays alive.
+    var msgs = getActiveMessages();
     if (lazyOffset >= msgs.length) {
+        if (loadAllBtn) loadAllBtn.disabled = false;
+        markConversationComplete();
         if (onComplete) onComplete();
         else requestAnimationFrame(scrollConvToBottom);
         return;
     }
 
-    if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
-    var sentinel = document.getElementById('lazy-sentinel');
-    if (loadAllBtn) loadAllBtn.disabled = true;
-
-    var CHUNK = 50;
+    var CHUNK = 100;
 
     function renderChunk() {
         var end = Math.min(lazyOffset + CHUNK, msgs.length);
@@ -327,7 +417,7 @@ function loadAllMessages(onComplete) {
         if (sentinel) {
             var remaining = msgs.length - lazyOffset;
             sentinel.textContent = remaining > 0
-                ? ('Loading… ' + lazyOffset + ' / ' + msgs.length)
+                ? ('Rendering… ' + lazyOffset.toLocaleString() + ' / ' + msgs.length.toLocaleString())
                 : '';
             sentinel.style.display = remaining > 0 ? '' : 'none';
         }
@@ -338,6 +428,7 @@ function loadAllMessages(onComplete) {
         } else {
             applyRoleFilter();
             if (loadAllBtn) loadAllBtn.disabled = false;
+            markConversationComplete();
             if (onComplete) {
                 onComplete();
             } else {
@@ -358,6 +449,45 @@ function loadAllMessages(onComplete) {
         }
     }
     renderChunk();
+}
+
+// Open a session centred on one message — how a bookmark or a search hit gets
+// there instantly instead of rendering everything before it first.
+async function openAtAnchor(uuid, opts) {
+    opts = opts || {};
+    if (!uuid || !currentProjectId || !currentSessionId) return false;
+    var seq = ++sessionRequestSeq;
+    setPanel('conversation-content', loadingSpinner('Jumping to bookmark…'));
+    try {
+        var url = '/api/projects/' + encodeURIComponent(currentProjectId) +
+            '/sessions/' + encodeURIComponent(currentSessionId) +
+            '?source=' + encodeURIComponent(currentSource) +
+            '&limit=' + ANCHOR_WINDOW +
+            '&around_uuid=' + encodeURIComponent(uuid);
+        var r = await fetch(url);
+        if (seq !== sessionRequestSeq) return false;
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var conv = await r.json();
+        if (seq !== sessionRequestSeq) return false;
+        if (!conv || conv.error || !Array.isArray(conv.messages)) throw new Error('bad payload');
+
+        cachePut(cacheKeyFor(currentSource, currentProjectId, currentSessionId), conv);
+        renderConversation(conv);
+
+        // Render just this window — pulling the whole session here would undo
+        // the point of jumping straight to the message.
+        renderLoadedMessages(function() {
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { scrollToAnchor(uuid); });
+            });
+        });
+        return true;
+    } catch (e) {
+        if (seq !== sessionRequestSeq) return false;
+        setPanel('conversation-content',
+            errorState('Could not jump to that message.', function() { openAtAnchor(uuid, opts); }));
+        return false;
+    }
 }
 
 // --- In-conversation find: searches the whole conversation, loading every
@@ -688,12 +818,20 @@ function setupLazyObserver(messagesDiv) {
     lazyObserver.observe(sentinel);
 }
 
+function hasOlderOnServer() {
+    return !!(currentConversation && currentConversation.total_messages != null
+              && convWindowStart > 0);
+}
+
+function hasNewerOnServer() {
+    return !!(currentConversation && currentConversation.total_messages != null
+              && convWindowEnd < currentConversation.total_messages);
+}
+
+// Either side counts. After jumping to a bookmark the loaded window sits in the
+// middle of the session, so scrolling can need messages in either direction.
 function hasMoreOnServer() {
-    if (!currentConversation || currentConversation.total_messages == null) return false;
-    // Newest-first walks backwards, so "more" means earlier messages.
-    return msgOrder === 'newest'
-        ? convWindowStart > 0
-        : convWindowEnd < currentConversation.total_messages;
+    return hasOlderOnServer() || hasNewerOnServer();
 }
 
 // Conversations arrive a page at a time so the server never has to parse a
@@ -715,9 +853,9 @@ async function fetchNextConversationPage() {
     convFetchInFlight = true;
     var seq = sessionRequestSeq;
     try {
-        // Newest-first reads backwards through the session, so the next page
-        // is the one BEFORE the current window, not after it.
-        var back = msgOrder === 'newest';
+        // Newest-first reads backwards through the session; fall back to the
+        // other direction when this one is exhausted.
+        var back = msgOrder === 'newest' ? hasOlderOnServer() : !hasNewerOnServer();
         var nextOffset = back ? Math.max(0, convWindowStart - CONV_PAGE) : convWindowEnd;
         var wanted = back
             ? convWindowStart - nextOffset

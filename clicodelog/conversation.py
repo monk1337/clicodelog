@@ -118,7 +118,8 @@ def _strip_tool_results(messages: list) -> None:
 
 def get_conversation(project_id: str, session_id: str, source_id: str,
                      *, offset: int = 0, limit: int | None = None,
-                     include_results: bool = False, tail: bool = False) -> dict:
+                     include_results: bool = False, tail: bool = False,
+                     around_uuid: str | None = None) -> dict:
     if source_id not in SOURCES:
         return {"error": "Unknown source"}
     if not (is_safe_id(project_id) and is_safe_id(session_id)):
@@ -138,9 +139,17 @@ def get_conversation(project_id: str, session_id: str, source_id: str,
     # tool outputs and the tool_use_id -> result mapping that requires them.
     if (source_id == "claude-code" and not include_results and limit is not None):
         try:
-            from .window import read_window
+            from .window import index_of_uuid, read_window
+            center = None
+            anchor_index = -1
+            if around_uuid:
+                anchor_index = index_of_uuid(session_file, st.st_size, st.st_mtime,
+                                             around_uuid)
+                if anchor_index >= 0:
+                    center = anchor_index
             messages, total, summaries, start = read_window(
-                session_file, st.st_size, st.st_mtime, max(0, offset), limit, tail)
+                session_file, st.st_size, st.st_mtime, max(0, offset), limit, tail,
+                center)
             _strip_tool_results(messages)
             return {
                 "summaries": summaries,
@@ -149,6 +158,7 @@ def get_conversation(project_id: str, session_id: str, source_id: str,
                 "messages": messages,
                 "total_messages": total,
                 "offset": start,
+                "anchor_index": anchor_index,
                 "truncated": (start + len(messages)) < total,
             }
         except OSError:
@@ -177,8 +187,19 @@ def get_conversation(project_id: str, session_id: str, source_id: str,
 
     messages = conv.get("messages") or []
     total = len(messages)
+    anchor_index = -1
+    if around_uuid:
+        for i, m in enumerate(messages):
+            if m.get("uuid") == around_uuid:
+                anchor_index = i
+                break
     if limit is not None:
-        start = max(0, total - limit) if tail else max(0, offset)
+        if anchor_index >= 0:
+            start = max(0, min(anchor_index - limit // 2, max(0, total - limit)))
+        elif tail:
+            start = max(0, total - limit)
+        else:
+            start = max(0, offset)
         window = messages[start:start + max(0, limit)]
     else:
         start = 0
@@ -191,5 +212,6 @@ def get_conversation(project_id: str, session_id: str, source_id: str,
         "messages": window,
         "total_messages": total,
         "offset": start,
+        "anchor_index": anchor_index,
         "truncated": limit is not None and (start + len(window)) < total,
     }

@@ -184,23 +184,32 @@
                 window.open(url, '_blank', 'noopener');
             };
             if (!currentProjectId || !currentSessionId) {
-                document.getElementById('conversation-content').innerHTML =
-                    '<div class="view-loading">Missing project or session in URL.</div>';
+                var miss = document.createElement('div');
+                miss.className = 'view-loading';
+                miss.textContent = 'Missing project or session in URL.';
+                setPanel('conversation-content', miss);
                 return;
             }
-            fetch('/api/projects/' + encodeURIComponent(currentProjectId) +
+            // Arriving via a bookmark asks for a window centred on that message
+            // so it opens immediately; otherwise show the end of the session.
+            var convUrl = '/api/projects/' + encodeURIComponent(currentProjectId) +
                   '/sessions/' + encodeURIComponent(currentSessionId) +
-                  '?source=' + encodeURIComponent(currentSource))
+                  '?source=' + encodeURIComponent(currentSource) +
+                  (jumpAnchor
+                     ? '&limit=' + ANCHOR_WINDOW + '&around_uuid=' + encodeURIComponent(jumpAnchor)
+                     : '&limit=' + CONV_PAGE + '&tail=true');
+            fetch(convUrl)
                 .then(function(r) { return r.json(); })
                 .then(function(conv) {
                     if (conv.error) {
-                        document.getElementById('conversation-content').innerHTML =
-                            '<div class="view-loading">Error: ' + conv.error + '</div>';
+                        var box = document.createElement('div');
+                        box.className = 'view-loading';
+                        box.textContent = 'Error: ' + conv.error;
+                        setPanel('conversation-content', box);
                         return;
                     }
                     renderConversation(conv);
-                    // If we arrived via a bookmark, load all then jump to it.
-                    if (jumpAnchor && typeof loadAllMessages === 'function') {
+                    if (jumpAnchor) {
                         loadAllMessages(function() {
                             requestAnimationFrame(function() {
                                 if (typeof scrollToAnchor === 'function') scrollToAnchor(jumpAnchor);
@@ -209,8 +218,10 @@
                     }
                 })
                 .catch(function(e) {
-                    document.getElementById('conversation-content').innerHTML =
-                        '<div class="view-loading">Failed to load: ' + (e && e.message ? e.message : e) + '</div>';
+                    var box = document.createElement('div');
+                    box.className = 'view-loading';
+                    box.textContent = 'Failed to load: ' + (e && e.message ? e.message : e);
+                    setPanel('conversation-content', box);
                 });
         })();
     </script>

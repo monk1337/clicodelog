@@ -149,13 +149,17 @@ function gotoBookmark(b) {
     var sameConv = (b.session_id === currentSessionId && b.source === currentSource);
 
     function findAfterLoad() {
-        // Ensure all messages are rendered, then scroll to the anchor.
-        if (typeof loadAllMessages === 'function') {
+        // Already rendered — just scroll to it.
+        if (scrollToAnchor(anchor)) return;
+        // Otherwise fetch a window centred on the bookmarked message. Loading
+        // the entire session to reach one message made this unusably slow on
+        // long conversations.
+        if (typeof openAtAnchor === 'function') {
+            openAtAnchor(anchor);
+        } else if (typeof loadAllMessages === 'function') {
             loadAllMessages(function () {
                 requestAnimationFrame(function () { scrollToAnchor(anchor); });
             });
-        } else {
-            scrollToAnchor(anchor);
         }
     }
 

@@ -2,6 +2,7 @@ import errno
 import os
 import signal
 import socket
+import sys
 import subprocess
 import threading
 import time
@@ -136,6 +137,15 @@ def run_server(
     from . import sync as _sync
 
     setup_logging(debug)
+
+    # Line-buffer stdout so the banner and the "Ready at" line appear straight
+    # away when output is redirected to a file or a process manager, instead of
+    # sitting in a block buffer until the process exits — which reads as the
+    # app having failed to start.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        pass
 
     print(BANNER)
     print("  AI Conversation History Viewer")

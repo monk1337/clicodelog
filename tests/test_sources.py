@@ -407,3 +407,62 @@ def test_unknown_anchor_falls_back_without_error(tmp_path, monkeypatch):
     assert conv["anchor_index"] == -1
     assert "error" not in conv
     assert conv["messages"], "an unknown anchor must still return the session"
+
+
+def test_continuation_preamble_is_not_used_as_the_title(tmp_path):
+    """Long sessions that hit the context limit restart with Claude Code's
+    continuation preamble as the first user message. It made every one of them
+    share a single useless title — including 9 of 13 bookmarked conversations."""
+    rows = [
+        {"type": "user", "timestamp": "2026-08-01T10:00:00Z", "uuid": "u0",
+         "message": {"role": "user", "content":
+                     "This session is being continued from a previous conversation that "
+                     "ran out of context. The summary below covers the earlier portion."}},
+        {"type": "user", "timestamp": "2026-08-01T10:01:00Z", "uuid": "u1",
+         "message": {"role": "user", "content": "train the retrieval model on the new corpus"}},
+    ]
+    p = tmp_path / "s.jsonl"
+    p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    assert scan_session(p, "claude-code")["summary"] == "train the retrieval model on the new corpus"
+
+    # Still falls back to the preamble when there is nothing else to use.
+    p.write_text(json.dumps(rows[0]) + "\n")
+    assert scan_session(p, "claude-code")["summary"].startswith("This session is being continued")
+
+
+def test_changed_extractor_rescans_without_emptying_listings(fake_data):
+    """Bumping SCAN_VERSION must re-read unchanged files (otherwise finished
+    sessions never pick up a better extractor) but must not delete rows first,
+    which would blank every listing for the duration of the rebuild."""
+    search_index.refresh_index("claude-code")
+    conn = metastore.connect()
+    assert metastore.count("claude-code") == 1
+
+    # Simulate an index written by an older extractor.
+    conn.execute("UPDATE meta SET value='1' WHERE key='scan_version:claude-code'")
+    conn.execute("UPDATE sessions SET summary='stale title' WHERE source='claude-code'")
+    conn.commit()
+
+    result = search_index.refresh_index("claude-code")
+    assert result["claude-code"]["changed"] == 1, "unchanged file must be re-read once"
+    row = conn.execute("SELECT summary FROM sessions WHERE source='claude-code'").fetchone()
+    assert row["summary"] != "stale title"
+
+    # And only once: the next refresh is back to incremental.
+    assert search_index.refresh_index("claude-code")["claude-code"]["changed"] == 0
+
+
+@pytest.mark.parametrize("marker", [
+    "[Image: original 2160x1800, displayed at 2000x1667. Multiply coordinates by 1.08]",
+    "[Request interrupted by user for tool use]",
+])
+def test_harness_markers_are_not_titles(tmp_path, marker):
+    rows = [
+        {"type": "user", "timestamp": "2026-08-01T10:00:00Z", "uuid": "u0",
+         "message": {"role": "user", "content": marker}},
+        {"type": "user", "timestamp": "2026-08-01T10:01:00Z", "uuid": "u1",
+         "message": {"role": "user", "content": "fix the flaky eval"}},
+    ]
+    p = tmp_path / "s.jsonl"
+    p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    assert scan_session(p, "claude-code")["summary"] == "fix the flaky eval"

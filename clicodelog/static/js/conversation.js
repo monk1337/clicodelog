@@ -8,6 +8,9 @@ function applyRoleFilter() {
     mc.classList.toggle('show-user', activeFilters.has('user'));
     mc.classList.toggle('show-assistant', activeFilters.has('assistant'));
     mc.classList.toggle('show-tools', activeFilters.has('tools'));
+    // Runs after every batch and prepend, so repeats stay collapsed as pages
+    // arrive from either end.
+    if (typeof applyUniqueFilter === 'function') applyUniqueFilter();
 }
 
 // The session's own working directory makes the CLI reachable again: after
@@ -680,6 +683,9 @@ function buildMessageEl(msg, msgIndex) {
     var anchor = bookmarkAnchor(msg, msgIndex);
     msgDiv.setAttribute('data-anchor', anchor);
     msgDiv.dataset.index = String(msgIndex);   // lets find/outline target it
+    // Fingerprint for the "Unique only" filter (unique.js).
+    if (typeof messageDupKey === 'function') msgDiv.dataset.dupkey = messageDupKey(msg);
+    if (msg.timestamp) msgDiv.dataset.ts = msg.timestamp;
 
     var msgHeader = document.createElement('div');
     msgHeader.className = 'message-header';

@@ -88,53 +88,13 @@ function closeBookmarksPanel() {
     if (panel) panel.classList.remove('open');
 }
 
-function renderBookmarksPanel() {
-    var list = document.getElementById('bookmarks-list');
-    if (!list) return;
-    list.textContent = '';
-    if (!allBookmarks.length) {
-        var empty = document.createElement('div');
-        empty.className = 'bookmarks-empty';
-        empty.textContent = 'No bookmarks yet. Click ☆ on any message to pin it.';
-        list.appendChild(empty);
-        return;
-    }
-    allBookmarks.forEach(function (b) {
-        var item = document.createElement('div');
-        item.className = 'bookmark-item';
-
-        var meta = document.createElement('div');
-        meta.className = 'bookmark-meta';
-        var proj = (b.project_id || '').replace(/-/g, '/').replace(/^\//, '').split('/').slice(-1)[0];
-        meta.textContent = (b.role || '') + ' · ' + proj + ' · ' + (b.session_id || '').slice(0, 8);
-        item.appendChild(meta);
-
-        var prev = document.createElement('div');
-        prev.className = 'bookmark-preview';
-        prev.textContent = b.preview || '(no preview)';
-        item.appendChild(prev);
-
-        item.onclick = function () { gotoBookmark(b); };
-
-        var del = document.createElement('button');
-        del.className = 'bookmark-del';
-        del.textContent = '✕';
-        del.title = 'Remove bookmark';
-        del.onclick = function (e) {
-            e.stopPropagation();
-            fetch('/api/bookmarks/' + encodeURIComponent(b.id), { method: 'DELETE' })
-                .then(function (r) { return r.json(); })
-                .then(function (l) { allBookmarks = l || []; refreshBookmarkSet(); renderBookmarksPanel(); });
-        };
-        item.appendChild(del);
-
-        list.appendChild(item);
-    });
-}
+// renderBookmarksPanel lives in bookmarks-panel.js.
 
 function scrollToAnchor(anchor, instant) {
     var el = document.querySelector('.message[data-anchor="' + (window.CSS && CSS.escape ? CSS.escape(anchor) : anchor) + '"]');
     if (el) {
+        // A bookmark can point at a copy that "Unique only" is hiding.
+        if (el.classList.contains('dup-repeat')) el.classList.add('dup-revealed');
         // A smooth scroll gets disrupted when a page is prepended mid-flight,
         // so an anchored jump positions instantly and re-asserts afterwards.
         el.scrollIntoView({ block: 'center', behavior: instant ? 'auto' : 'smooth' });

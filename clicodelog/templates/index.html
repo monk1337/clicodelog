@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/static/css/search.css">
     <link rel="stylesheet" href="/static/css/tags.css">
     <link rel="stylesheet" href="/static/css/misc.css">
+    <link rel="stylesheet" href="/static/css/organize.css">
 </head>
 <body class="hide-tool-boxes">
     <div id="source-warning" role="status"></div>
@@ -180,6 +181,10 @@
                     <button class="role-btn" data-filter="user" onclick="toggleRoleFilter('user')">User</button>
                     <button class="role-btn" data-filter="assistant" onclick="toggleRoleFilter('assistant')">AI</button>
                     <button class="role-btn" data-filter="tools" onclick="toggleRoleFilter('tools')">Tools</button>
+                    <label class="unique-toggle" title="Show each distinct message once, with a ×N count of how often it repeats">
+                        <input type="checkbox" onchange="toggleUniqueOnly(this.checked)"> Unique only
+                    </label>
+                    <span class="unique-status" id="unique-status"></span>
                 </div>
                 <div class="conv-date-group">
                     <label class="conv-date-label">From</label>
@@ -231,6 +236,8 @@
     <script src="/static/js/sessions.js"></script>
     <script src="/static/js/conversation.js"></script>
     <script src="/static/js/bookmarks.js"></script>
+    <script src="/static/js/bookmarks-panel.js"></script>
+    <script src="/static/js/unique.js"></script>
     <script src="/static/js/search.js"></script>
     <script src="/static/js/stats.js"></script>
     <script src="/static/js/clipboard.js"></script>

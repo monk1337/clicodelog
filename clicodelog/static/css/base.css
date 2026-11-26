@@ -9,8 +9,11 @@ body {
 
 .app {
     display: flex;
-    height: calc(100vh - 60px);
-    margin-top: 60px;
+    /* --controls-h tracks the fixed toolbar's real height (resize.js). It was a
+       hard-coded 60px, which only fits one row: when the toolbar wraps on a
+       narrower window, its second row covered the conversation filter bar. */
+    height: calc(100vh - var(--controls-h, 60px));
+    margin-top: var(--controls-h, 60px);
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

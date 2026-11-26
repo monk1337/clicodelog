@@ -40,3 +40,18 @@
         });
     });
 })();
+
+// Reserve exactly as much room as the fixed toolbar takes. It wraps onto a
+// second row when the window is narrow, and a fixed 60px offset let that row
+// sit on top of the conversation's filter bar.
+(function trackToolbarHeight() {
+    var bar = document.querySelector('.top-controls');
+    if (!bar) return;
+    function update() {
+        var bottom = Math.ceil(bar.getBoundingClientRect().bottom);
+        document.documentElement.style.setProperty('--controls-h', Math.max(60, bottom + 4) + 'px');
+    }
+    update();
+    if ('ResizeObserver' in window) new ResizeObserver(update).observe(bar);
+    window.addEventListener('resize', update);
+})();

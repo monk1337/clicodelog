@@ -37,7 +37,7 @@ def main():
         "--folder", "-f",
         type=str,
         default=None,
-        help="Only show projects whose name contains this text (e.g. --folder ceszero)",
+        help="Only show projects whose name contains this text (e.g. --folder myapp)",
     )
     parser.add_argument(
         "--debug",

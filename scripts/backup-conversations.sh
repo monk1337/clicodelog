@@ -12,7 +12,7 @@
 #   ./backup-conversations.sh --rclone gdrive:claude-backup  # also push to cloud
 #
 # Flags can combine, e.g.:
-#   ./backup-conversations.sh --one 484582a9 --rclone gdrive:claude-backup
+#   ./backup-conversations.sh --one 1a2b3c4d --rclone gdrive:claude-backup
 #
 # Env overrides:
 #   SRC      source dir   (default: ~/.claude/projects)

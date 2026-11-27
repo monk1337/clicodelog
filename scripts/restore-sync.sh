@@ -21,8 +21,8 @@
 #   ./scripts/restore-sync.sh --list                  # list folders only in backup
 #
 # PROJECT is the encoded folder name, e.g.
-#   -Users-stoic-Documents-Projects-ceszero
-# A substring also works (e.g. "ceszero") — it matches the first folder
+#   -Users-alice-code-myapp
+# A substring also works (e.g. "myapp") — it matches the first folder
 # in either location whose name contains it.
 
 set -uo pipefail

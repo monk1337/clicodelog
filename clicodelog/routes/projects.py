@@ -14,12 +14,15 @@ from fastapi.responses import JSONResponse
 
 from .. import sync as _sync
 from ..conversation import get_conversation
+from ..logging_setup import get_logger
 from ..metadata import get_project_meta_key, load_project_meta, update_project_meta
+from ..metastore import session_info
 from ..projects import get_projects
 from ..sessions import get_sessions, get_subagent_sessions
 from ..utils import is_safe_id
 
 router = APIRouter()
+log = get_logger(__name__)
 
 MAX_PAGE = 2000
 
@@ -67,19 +70,26 @@ def api_conversation(project_id: str, session_id: str,
                      offset: int = 0,
                      limit: Optional[int] = None,
                      include_results: bool = False,
-                     tail: bool = False):
+                     tail: bool = False,
+                     around_uuid: Optional[str] = None):
     if not (is_safe_id(project_id) and is_safe_id(session_id)):
         return JSONResponse({"error": "Invalid id"}, status_code=400)
     if limit is not None:
         limit = max(1, min(limit, MAX_PAGE))
     conv = get_conversation(project_id, session_id, _resolve_source(source),
                             offset=max(0, offset), limit=limit,
-                            include_results=include_results, tail=tail)
+                            include_results=include_results, tail=tail,
+                            around_uuid=around_uuid)
     if "error" in conv:
         # Previously returned 200 with an error body, so no client could tell
         # success from failure by status alone.
         status = 404 if conv["error"] in ("Session not found", "Unknown source") else 400
         return JSONResponse(conv, status_code=status)
+    try:
+        conv["info"] = session_info(_resolve_source(source), project_id, session_id)
+    except Exception:
+        log.exception("Could not read session info for %s", session_id)
+        conv["info"] = None
     return conv
 
 

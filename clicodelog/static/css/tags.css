@@ -1,28 +1,14 @@
-.edit-btn {
-    display: none; position: absolute; top: 10px; right: 10px;
-    background: var(--bg-tertiary); border: 1px solid var(--border-color);
-    border-radius: 4px; padding: 2px 6px; cursor: pointer;
-    font-size: 12px; color: var(--text-secondary); z-index: 5;
-}
-.edit-btn:hover { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-.list-item:hover .edit-btn { display: block; }
-
+/* Project tags. The colour comes from --tag, set per chip from the tag name. */
 .tag-chip {
-    display: inline-block; padding: 1px 6px; border-radius: 10px;
-    font-size: 10px; font-weight: 500; margin: 1px 2px; color: white;
+    display: inline-flex; align-items: center;
+    height: 18px; padding: 0 8px;
+    border-radius: var(--r-full);
+    background: color-mix(in srgb, var(--tag, #5f6368) 16%, transparent);
+    color: color-mix(in srgb, var(--tag, #5f6368) 80%, var(--text));
+    font-size: 11px; font-weight: 600;
 }
+.project-item.active .tag-chip { background: color-mix(in srgb, var(--tag, #5f6368) 24%, transparent); }
 
-.tag-filter-bar {
-    display: none; padding: 6px 12px; border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary); flex-wrap: wrap; gap: 4px; align-items: center;
-}
-.tag-filter-bar.visible { display: flex; }
-
-.tag-filter-chip {
-    display: inline-block; padding: 2px 8px; border-radius: 10px;
-    font-size: 10px; font-weight: 500; cursor: pointer;
-    color: white; opacity: 0.7; transition: opacity 0.15s;
-}
-.tag-filter-chip:hover, .tag-filter-chip.active { opacity: 1; }
-.tag-filter-chip.active { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
-.tag-filter-label { font-size: 10px; color: var(--text-muted); margin-right: 4px; }
+.tag-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px 10px; flex-shrink: 0; }
+.tag-filter-chip { height: 28px; padding: 0 10px; font-size: 12px; }
+.tag-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tag, #5f6368); }

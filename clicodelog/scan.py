@@ -24,6 +24,23 @@ EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit", "str_replace_editor"
 MAX_FILES_TOUCHED = 200      # keep index entries bounded
 SUMMARY_CHARS = 100
 
+# When a Claude Code session runs out of context it restarts with this
+# preamble as its first user message. Taking it as the title made every
+# continued session read "This session is being continued from a previous…",
+# which is most of the long, heavily bookmarked ones — so it is skipped like
+# any other preamble, and the first prompt the user actually typed wins.
+CONTINUATION_PREFIXES = (
+    "This session is being continued from a previous conversation",
+    # Harness markers Claude Code writes as user turns — never what the user typed.
+    "[Image:",
+    "[Image #",
+    "[Request interrupted by user",
+)
+
+
+def _is_preamble(text: str) -> bool:
+    return text.startswith("<") or text.startswith(CONTINUATION_PREFIXES)
+
 
 def _blank_usage() -> dict:
     return {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 0}
@@ -133,7 +150,7 @@ def _read_claude(entry: dict, state: dict) -> None:
         text = _text_of(content).strip()
         if text and not state["any_user_text"]:
             state["any_user_text"] = text[:SUMMARY_CHARS]
-        if text and not text.startswith("<"):
+        if text and not _is_preamble(text):
             state["first_user_message"] = text[:SUMMARY_CHARS]
 
     if isinstance(content, list):
@@ -210,7 +227,7 @@ def _gemini_message(msg: dict, state: dict) -> None:
             text = _text_of(msg.get("content")).strip()
             if text and not state["any_user_text"]:
                 state["any_user_text"] = text[:SUMMARY_CHARS]
-            if text and not text.startswith("<"):
+            if text and not _is_preamble(text):
                 state["first_user_message"] = text[:SUMMARY_CHARS]
         return
 

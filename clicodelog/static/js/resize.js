@@ -1,42 +1,56 @@
+// Draggable column widths, remembered across visits.
 (function initResizableColumns() {
-    const handles = [
+    var handles = [
         { el: document.getElementById('resize-handle-1'), panel: document.getElementById('projects-panel') },
         { el: document.getElementById('resize-handle-2'), panel: document.getElementById('sessions-panel') },
-    ];
+    ].filter(function(h) { return h.el && h.panel; });
+    if (!handles.length) return;
 
     try {
-        const saved = JSON.parse(localStorage.getItem('columnWidths'));
+        var saved = JSON.parse(localStorage.getItem('columnWidths'));
         if (saved) {
-            if (saved.projects) handles[0].panel.style.width = saved.projects + 'px';
-            if (saved.sessions) handles[1].panel.style.width = saved.sessions + 'px';
+            if (saved.projects && handles[0]) handles[0].panel.style.width = saved.projects + 'px';
+            if (saved.sessions && handles[1]) handles[1].panel.style.width = saved.sessions + 'px';
         }
-    } catch (e) {}
+    } catch (e) { /* ignore */ }
 
-    handles.forEach(function({ el, panel }) {
-        el.addEventListener('mousedown', function(e) {
+    function save() {
+        try {
+            localStorage.setItem('columnWidths', JSON.stringify({
+                projects: handles[0] ? handles[0].panel.offsetWidth : undefined,
+                sessions: handles[1] ? handles[1].panel.offsetWidth : undefined,
+            }));
+        } catch (e) { /* ignore */ }
+    }
+
+    handles.forEach(function(h) {
+        h.el.addEventListener('pointerdown', function(e) {
             e.preventDefault();
             var startX = e.clientX;
-            var startWidth = panel.offsetWidth;
-            var minW = parseInt(getComputedStyle(panel).minWidth) || 100;
-            var maxW = parseInt(getComputedStyle(panel).maxWidth) || 800;
-            el.classList.add('dragging');
+            var startWidth = h.panel.offsetWidth;
+            var cs = getComputedStyle(h.panel);
+            var minW = parseInt(cs.minWidth, 10) || 160;
+            var maxW = parseInt(cs.maxWidth, 10) || 800;
+            h.el.classList.add('dragging');
             document.body.classList.add('resizing');
+            h.el.setPointerCapture(e.pointerId);
 
-            function onMove(e) {
-                panel.style.width = Math.min(maxW, Math.max(minW, startWidth + (e.clientX - startX))) + 'px';
+            function onMove(ev) {
+                h.panel.style.width = Math.min(maxW, Math.max(minW, startWidth + (ev.clientX - startX))) + 'px';
             }
             function onUp() {
-                el.classList.remove('dragging');
+                h.el.classList.remove('dragging');
                 document.body.classList.remove('resizing');
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-                localStorage.setItem('columnWidths', JSON.stringify({
-                    projects: handles[0].panel.offsetWidth,
-                    sessions: handles[1].panel.offsetWidth,
-                }));
+                h.el.removeEventListener('pointermove', onMove);
+                h.el.removeEventListener('pointerup', onUp);
+                h.el.removeEventListener('pointercancel', onUp);
+                save();
             }
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
+            h.el.addEventListener('pointermove', onMove);
+            h.el.addEventListener('pointerup', onUp);
+            h.el.addEventListener('pointercancel', onUp);
         });
+        // Double-click restores the default width.
+        h.el.addEventListener('dblclick', function() { h.panel.style.width = ''; save(); });
     });
 })();

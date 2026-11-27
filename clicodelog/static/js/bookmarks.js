@@ -18,7 +18,7 @@ function isBookmarked(anchor) {
 
 function refreshBookmarkSet() {
     bookmarkSet = {};
-    allBookmarks.forEach(function (b) {
+    allBookmarks.forEach(function(b) {
         if (b.session_id === currentSessionId && b.source === currentSource) {
             bookmarkSet[b.uuid || b.anchor] = b;
         }
@@ -27,31 +27,36 @@ function refreshBookmarkSet() {
 
 function loadBookmarks(cb) {
     fetch('/api/bookmarks')
-        .then(function (r) { return r.json(); })
-        .then(function (list) {
+        .then(function(r) { return r.json(); })
+        .then(function(list) {
             allBookmarks = list || [];
             refreshBookmarkSet();
+            refreshPins();
             if (cb) cb();
         })
-        .catch(function () { if (cb) cb(); });
+        .catch(function() { if (cb) cb(); });
+}
+
+function bookmarkPreview(msg) {
+    return (msg.content || '').trim().slice(0, 160) ||
+        (msg.thinking ? '[thinking] ' + msg.thinking.slice(0, 140) : '') ||
+        (msg.tool_uses && msg.tool_uses.length ? '[tool: ' + msg.tool_uses[0].name + ']' : '[no text]');
 }
 
 function toggleBookmark(msg, idx, anchor, btn) {
     if (isBookmarked(anchor)) {
         var b = bookmarkSet[anchor];
         fetch('/api/bookmarks/' + encodeURIComponent(b.id), { method: 'DELETE' })
-            .then(function (r) { return r.json(); })
-            .then(function (list) {
+            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function(list) {
                 allBookmarks = list || [];
                 refreshBookmarkSet();
-                btn.classList.remove('pinned');
-                btn.textContent = '☆';
-            });
+                if (btn) setPinState(btn, false);
+                toast('Bookmark removed');
+            })
+            .catch(function() { toast('Could not remove the bookmark'); });
         return;
     }
-    var preview = (msg.content || '').trim().slice(0, 160) ||
-        (msg.thinking ? '[thinking] ' + msg.thinking.slice(0, 140) : '') ||
-        (msg.tool_uses && msg.tool_uses.length ? '[tool: ' + msg.tool_uses[0].name + ']' : '[no text]');
     var body = {
         source: currentSource,
         project_id: currentProjectId,
@@ -61,122 +66,71 @@ function toggleBookmark(msg, idx, anchor, btn) {
         msg_index: idx,
         role: msg.role,
         timestamp: msg.timestamp || null,
-        preview: preview
+        preview: bookmarkPreview(msg),
     };
     fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
     })
-        .then(function (r) { return r.json(); })
-        .then(function (list) {
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(list) {
             allBookmarks = list || [];
             refreshBookmarkSet();
-            btn.classList.add('pinned');
-            btn.textContent = '★';
-        });
+            if (btn) setPinState(btn, true);
+            toast('Bookmarked');
+        })
+        .catch(function() { toast('Could not save the bookmark'); });
 }
 
 function openBookmarksPanel() {
-    loadBookmarks(function () { renderBookmarksPanel(); });
     var panel = document.getElementById('bookmarks-panel');
-    if (panel) panel.classList.add('open');
+    if (!panel) return;
+    if (panel.classList.contains('open')) { closeBookmarksPanel(); return; }
+    loadBookmarks(function() { renderBookmarksPanel(); });
+    panel.classList.add('open');
+    var btn = document.getElementById('bookmarks-btn');
+    if (btn) btn.classList.add('active');
 }
 
 function closeBookmarksPanel() {
     var panel = document.getElementById('bookmarks-panel');
     if (panel) panel.classList.remove('open');
+    var btn = document.getElementById('bookmarks-btn');
+    if (btn) btn.classList.remove('active');
 }
 
-function renderBookmarksPanel() {
-    var list = document.getElementById('bookmarks-list');
-    if (!list) return;
-    list.textContent = '';
-    if (!allBookmarks.length) {
-        var empty = document.createElement('div');
-        empty.className = 'bookmarks-empty';
-        empty.textContent = 'No bookmarks yet. Click ☆ on any message to pin it.';
-        list.appendChild(empty);
-        return;
-    }
-    allBookmarks.forEach(function (b) {
-        var item = document.createElement('div');
-        item.className = 'bookmark-item';
-
-        var meta = document.createElement('div');
-        meta.className = 'bookmark-meta';
-        var proj = (b.project_id || '').replace(/-/g, '/').replace(/^\//, '').split('/').slice(-1)[0];
-        meta.textContent = (b.role || '') + ' · ' + proj + ' · ' + (b.session_id || '').slice(0, 8);
-        item.appendChild(meta);
-
-        var prev = document.createElement('div');
-        prev.className = 'bookmark-preview';
-        prev.textContent = b.preview || '(no preview)';
-        item.appendChild(prev);
-
-        item.onclick = function () { gotoBookmark(b); };
-
-        var del = document.createElement('button');
-        del.className = 'bookmark-del';
-        del.textContent = '✕';
-        del.title = 'Remove bookmark';
-        del.onclick = function (e) {
-            e.stopPropagation();
-            fetch('/api/bookmarks/' + encodeURIComponent(b.id), { method: 'DELETE' })
-                .then(function (r) { return r.json(); })
-                .then(function (l) { allBookmarks = l || []; refreshBookmarkSet(); renderBookmarksPanel(); });
-        };
-        item.appendChild(del);
-
-        list.appendChild(item);
-    });
-}
-
-function scrollToAnchor(anchor) {
-    var el = document.querySelector('.message[data-anchor="' + (window.CSS && CSS.escape ? CSS.escape(anchor) : anchor) + '"]');
-    if (el) {
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        el.classList.add('bookmark-flash');
-        setTimeout(function () { el.classList.remove('bookmark-flash'); }, 1600);
-        return true;
-    }
-    return false;
-}
+// renderBookmarksPanel lives in bookmarks-panel.js; scrollToAnchor and
+// openAtAnchor in conv-view.js.
 
 function gotoBookmark(b) {
     closeBookmarksPanel();
     var anchor = b.uuid || b.anchor;
-    var sameConv = (b.session_id === currentSessionId && b.source === currentSource);
-
-    function findAfterLoad() {
-        // Ensure all messages are rendered, then scroll to the anchor.
-        if (typeof loadAllMessages === 'function') {
-            loadAllMessages(function () {
-                requestAnimationFrame(function () { scrollToAnchor(anchor); });
-            });
-        } else {
-            scrollToAnchor(anchor);
-        }
-    }
-
+    var sameConv = b.session_id === currentSessionId && b.source === currentSource &&
+        b.project_id === currentProjectId;
     if (sameConv) {
-        findAfterLoad();
+        // Loaded: scroll to it. Otherwise open a window centred on it, rather
+        // than loading the entire session to reach one message.
+        if (!scrollToAnchor(anchor)) openAtAnchor(anchor);
         return;
     }
-    // Different conversation: open via focus view in a new tab (works on both
-    // main app and focus page), anchored.
-    var url = '/view/' + encodeURIComponent(b.source) + '/' +
-        encodeURIComponent(b.project_id) + '/' + encodeURIComponent(b.session_id) +
-        '?anchor=' + encodeURIComponent(anchor);
-    // Main app uses /view?source=...&project=...&session=...; build that form:
-    url = '/view?source=' + encodeURIComponent(b.source) +
+    // Another conversation opens in the focus view, anchored.
+    window.open('/view?source=' + encodeURIComponent(b.source) +
         '&project=' + encodeURIComponent(b.project_id) +
         '&session=' + encodeURIComponent(b.session_id) +
-        '&anchor=' + encodeURIComponent(anchor);
-    window.open(url, '_blank', 'noopener');
+        '&anchor=' + encodeURIComponent(anchor), '_blank', 'noopener');
 }
 
-// Load bookmark set whenever a conversation is shown (called from renderConversation).
+// Bookmarks can arrive after a conversation rendered; fix up its stars.
+function refreshPins() {
+    if (typeof VL === 'undefined' || !VL) return;
+    VL.nodes.forEach(function(wrap) {
+        var btn = wrap.querySelector('.pin-btn');
+        var msgEl = wrap.firstChild;
+        if (btn && msgEl) setPinState(btn, isBookmarked(msgEl.getAttribute('data-anchor')));
+    });
+}
+
 function syncBookmarksForCurrent() {
     loadBookmarks();
 }

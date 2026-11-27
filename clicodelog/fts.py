@@ -501,16 +501,30 @@ def _snippet_parts(text: str) -> list:
 def search_content(query: str, source_id: str, *, limit: int = 50,
                    project: str | None = None, role: str | None = None,
                    after: str | None = None, before: str | None = None) -> list:
-    """Ranked content search, grouped by session."""
+    """Ranked content search, grouped by session.
+
+    Three phases, because doing it in one query was slow in two different ways.
+    snippet() in the select list is evaluated for every match before ORDER BY
+    can discard any: 1.14 s for "error" (4,942 hits) building snippets nobody
+    sees. And joining messages/files before ranking fetched a row per match:
+    1.16 s for "the" (31,030 hits) against 18 ms to rank inside FTS alone.
+
+      1. rank inside the FTS table only, over a bounded candidate set;
+      2. join just those candidates to apply the filters and get metadata;
+      3. build snippets only for the (at most 3 per session) matches returned.
+    """
     expr = build_match(query)
     if not expr or not is_available(source_id):
         return []
 
     conn = _connect()
-    where = ["f.source = ?"]
+    # The unary + keeps the planner off files_source. Left to itself it walked
+    # every file of the source probing for each candidate: 300 ms for 1,200
+    # candidates, against 1.3 ms looking each candidate up by rowid.
+    where = ["+f.source = ?"]
     params: list = [source_id]
     if project:
-        where.append("f.project_id = ?")
+        where.append("+f.project_id = ?")
         params.append(project)
     if role:
         where.append("m.role = ?")
@@ -522,26 +536,35 @@ def search_content(query: str, source_id: str, *, limit: int = 50,
         where.append("m.ts <= ?")
         params.append(before)
 
-    sql = f"""
-      SELECT f.project_id, f.project_name, f.session_id, f.last_ts,
-             m.uuid, m.role, m.kind, m.ts, m.msg_idx,
-             snippet(fts, 0, char(1), char(2), '…', 12) AS snip_dialog,
-             snippet(fts, 1, char(1), char(2), '…', 10) AS snip_tool,
-             bm25(fts, 1.0, 0.3) AS rank
-      FROM fts
-      JOIN messages m ON m.id = fts.rowid
-      JOIN files f ON f.id = m.file_id
-      WHERE fts MATCH ? AND {' AND '.join(where)}
-      ORDER BY rank
-      LIMIT ?
-    """
+    want = limit * 6
+    k = want * 2
+    rows: list = []
     try:
-        rows = conn.execute(sql, [expr] + params + [limit * 6]).fetchall()
+        while True:
+            cand = conn.execute(
+                "SELECT rowid, bm25(fts, 1.0, 0.3) AS rank FROM fts "
+                "WHERE fts MATCH ? ORDER BY rank LIMIT ?", (expr, k)).fetchall()
+            if not cand:
+                break
+            rank_of = {c["rowid"]: c["rank"] for c in cand}
+            meta = conn.execute(f"""
+              SELECT m.id, f.project_id, f.project_name, f.session_id, f.last_ts,
+                     m.uuid, m.role, m.kind, m.ts, m.msg_idx
+              FROM messages m JOIN files f ON f.id = m.file_id
+              WHERE m.id IN (SELECT value FROM json_each(?)) AND {' AND '.join(where)}
+            """, [json.dumps(list(rank_of))] + params).fetchall()
+            rows = sorted(meta, key=lambda r: rank_of[r["id"]])[:want]
+            # Filters can discard most of the best-ranked candidates; widen the
+            # candidate set until there are enough, or there is nothing more.
+            if len(rows) >= want or len(cand) < k or k >= 40_000:
+                break
+            k *= 4
     except sqlite3.OperationalError:
         log.exception("FTS query failed for %r (expr=%r)", query, expr)
         return []
 
     sessions: dict = {}
+    shown: list = []
     for r in rows:
         key = (r["project_id"], r["session_id"])
         s = sessions.get(key)
@@ -555,20 +578,36 @@ def search_content(query: str, source_id: str, *, limit: int = 50,
                 "cwd": "",
                 "matches": [],
                 "match_count": 0,
-                "rank": r["rank"],
+                "rank": rank_of[r["id"]],
             }
         s["match_count"] += 1
         if len(s["matches"]) < 3:
-            snippet = r["snip_dialog"] or r["snip_tool"] or ""
-            s["matches"].append({
+            m = {
                 "uuid": r["uuid"],
                 "msg_idx": r["msg_idx"],
                 "role": r["role"],
                 "kind": r["kind"],
                 "ts": r["ts"],
-                "snippet_parts": _snippet_parts(snippet),
-            })
+                "_id": r["id"],
+                "snippet_parts": [],
+            }
+            s["matches"].append(m)
     out = sorted(sessions.values(), key=lambda s: s["rank"])[:limit]
+
+    for s in out:
+        shown.extend(s["matches"])
+    if shown:
+        try:
+            snips = {r["rowid"]: (r["d"] or r["t"] or "") for r in conn.execute(
+                "SELECT rowid, snippet(fts, 0, char(1), char(2), '…', 12) AS d, "
+                "snippet(fts, 1, char(1), char(2), '…', 10) AS t "
+                "FROM fts WHERE fts MATCH ? AND rowid IN (SELECT value FROM json_each(?))",
+                (expr, json.dumps([m["_id"] for m in shown])))}
+        except sqlite3.OperationalError:
+            log.exception("FTS snippet query failed for %r", query)
+            snips = {}
+        for m in shown:
+            m["snippet_parts"] = _snippet_parts(snips.get(m.pop("_id"), ""))
 
     # Fill in summaries for just these results, rather than loading every row.
     from . import search_index as _idx

@@ -3,216 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conversation – clicodelog</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/variables.css">
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/messages.css">
-    <link rel="stylesheet" href="/static/css/controls.css">
-    <link rel="stylesheet" href="/static/css/layout.css">
-    <link rel="stylesheet" href="/static/css/search.css">
-    <link rel="stylesheet" href="/static/css/list.css">
-    <link rel="stylesheet" href="/static/css/misc.css">
-    <style>
-        body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
-        .view-shell { width: 100%; padding: 0 32px 96px; }
-        .view-bar {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 14px 0; border-bottom: 1px solid var(--border-color);
-            position: sticky; top: 0; background: var(--bg-primary); z-index: 5;
-        }
-        .view-bar h1 { font-size: 14px; font-weight: 600; color: var(--text-secondary); font-family: var(--font-mono); letter-spacing: -0.2px; }
-        .view-bar .meta { font-size: 12px; color: var(--text-muted); margin-left: 12px; }
-        .view-loading { padding: 80px 0; text-align: center; color: var(--text-muted); }
-        #conversation-content { background: transparent; }
-        .conversation-header { background: transparent; border-bottom: 1px solid var(--border-color); padding: 20px 0 14px; }
-        .messages { padding: 24px 0 64px; }
-        /* On the focus page, let prose use the full screen width */
-        .view-shell .message-content.markdown { max-width: none; }
-        /* hidden stubs so renderConversation() can flip their .disabled without erroring */
-        .view-stubs { display: none; }
-    </style>
+    <meta name="color-scheme" content="light dark">
+    <title>Conversation · clicodelog</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230b57d0'/%3E%3Cpath d='m9 11 5 5-5 5M17 21h6' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))}catch(e){}</script>
+    <link rel="stylesheet" href="{{ asset('app.css') }}">
 </head>
-<body class="hide-tool-boxes">
-    <!-- Search modal (reuses search.css from main app) -->
-    <div class="search-modal" id="search-modal">
-        <div class="search-modal-header">
-            <h3>Search Conversations</h3>
-            <span class="search-modal-close" onclick="toggleSearch()">✕</span>
+<body class="hide-tool-boxes focus-page">
+{% include '_icons.html' %}
+    <header class="appbar">
+        <a class="brand" href="/" title="Back to all conversations">
+            <span class="brand-mark"><svg class="i"><use href="#i-logo"/></svg></span>
+            <span class="brand-name">clicodelog</span>
+        </a>
+        <span class="focus-title" id="view-title"></span>
+        <button class="search-trigger compact" id="search-btn" onclick="toggleSearch()" title="Search every conversation (⌘K)">
+            <svg class="i"><use href="#i-search"/></svg>
+            <span class="search-trigger-text">Search</span>
+            <kbd>⌘K</kbd>
+        </button>
+        <div class="appbar-actions">
+            <span class="sync-status" id="sync-status" title="Last sync time"></span>
+            <button class="icon-btn" id="sync-btn" onclick="manualSync()" title="Sync now" aria-label="Sync now"><svg class="i"><use href="#i-sync"/></svg></button>
+            <button class="icon-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="Bookmarks" aria-label="Bookmarks"><svg class="i"><use href="#i-star"/></svg></button>
+            <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><svg class="i" id="theme-icon"><use href="#i-moon"/></svg></button>
+            <button class="icon-btn" onclick="window.close()" title="Close tab" aria-label="Close tab"><svg class="i"><use href="#i-close"/></svg></button>
         </div>
-        <div class="search-input-container">
-            <input type="text" id="global-search-input" placeholder="Search across all conversations...">
-        </div>
-        <div class="search-modal-content" id="search-results">
-            <div class="no-search-results">Type to search across conversations</div>
-        </div>
-    </div>
+    </header>
 
-    <div class="bookmarks-panel" id="bookmarks-panel">
-        <div class="bookmarks-header">
-            <h3>⭐ Bookmarks</h3>
-            <span class="bookmarks-close" onclick="closeBookmarksPanel()">✕</span>
-        </div>
-        <div class="bookmarks-list" id="bookmarks-list"></div>
-    </div>
+    <main class="focus-main conv-pane" id="conversation-panel">
+{% include '_conversation.html' %}
+    </main>
 
-    <div class="view-shell">
-        <div class="view-bar">
-            <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-                <h1 id="view-title">Loading…</h1>
-                <span class="sync-status" id="sync-status" title="Last sync time">Syncing...</span>
-            </div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
-                <button class="control-btn" id="thinking-toggle-btn" onclick="toggleAllThinking()" title="Toggle all thinking blocks">
-                    <span class="icon">🧠</span><span>Show Thinking</span>
-                </button>
-                <button class="control-btn active" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
-                    <span class="icon">🧰</span><span>Show Tools</span>
-                </button>
-                <button class="control-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="View all pinned messages">
-                    <span class="icon">⭐</span><span>Bookmarks</span>
-                </button>
-                <button class="control-btn" id="search-btn" onclick="toggleSearch()" title="Search conversations">
-                    <span class="icon">🔍</span><span>Search</span>
-                </button>
-                <button class="control-btn" id="copy-btn" onclick="copyConversation()" title="Copy to clipboard (filtered if a date range is set)" disabled>
-                    <span class="icon">📋</span><span>Copy</span>
-                </button>
-                <button class="control-btn" id="export-btn" onclick="exportConversation()" title="Export readable TXT (full tool input + output; filtered if a date range is set)" disabled>
-                    <span class="icon">📥</span><span>Export</span>
-                </button>
-                <button class="control-btn" id="export-raw-btn" onclick="exportRawConversation()" title="Export the exact raw source file (everything, nothing omitted)" disabled>
-                    <span class="icon">🧬</span><span>Raw</span>
-                </button>
-                <button class="control-btn" id="sync-btn" onclick="manualSync()" title="Sync data now">
-                    <span class="icon">🔄</span><span>Sync</span>
-                </button>
-                <button class="control-btn" onclick="toggleTheme()" title="Toggle theme">
-                    <span class="icon" id="theme-icon">🌙</span>
-                    <span id="theme-label">Dark</span>
-                </button>
-                <button class="control-btn" onclick="window.close()" title="Close tab">
-                    <span class="icon">✕</span><span>Close</span>
-                </button>
-            </div>
-        </div>
-        <div class="conv-filter-bar" id="conv-filter-bar" style="display:none">
-            <div class="role-filter-group">
-                <button class="role-btn" data-filter="user" onclick="toggleRoleFilter('user')">User</button>
-                <button class="role-btn" data-filter="assistant" onclick="toggleRoleFilter('assistant')">AI</button>
-                <button class="role-btn" data-filter="tools" onclick="toggleRoleFilter('tools')">Tools</button>
-            </div>
-            <div class="conv-date-group">
-                <label class="conv-date-label">From</label>
-                <input type="date" id="date-from" class="conv-date-input">
-                <label class="conv-date-label">To</label>
-                <input type="date" id="date-to" class="conv-date-input">
-                <button class="conv-ctrl-btn" id="apply-filter-btn" onclick="applyDateFilter()" title="Apply date range">Apply</button>
-                <button class="conv-ctrl-btn" onclick="clearDateFilter()" title="Clear date filter">Clear</button>
-                <span class="conv-filter-loading" id="conv-filter-loading" style="display:none"><span class="mini-spinner"></span>Filtering…</span>
-                <span class="conv-filter-status" id="conv-filter-status"></span>
-            </div>
-            <div class="conv-search-group">
-                <input type="text" id="conv-search-input" class="conv-search-input" placeholder="Find in this conversation…" onkeydown="if(event.key==='Enter'){event.shiftKey?convSearchPrev():convSearchNext();}">
-                <button class="conv-ctrl-btn" onclick="runConvSearch()" title="Search the full conversation">Find</button>
-                <button class="conv-ctrl-btn" onclick="convSearchPrev()" title="Previous match">&#8593;</button>
-                <button class="conv-ctrl-btn" onclick="convSearchNext()" title="Next match">&#8595;</button>
-                <button class="conv-ctrl-btn" onclick="clearConvSearch()" title="Clear find">&#10005;</button>
-                <span class="conv-filter-status" id="conv-search-status"></span>
-            </div>
-            <div class="conv-nav-btns">
-                <button class="conv-ctrl-btn" id="msg-order-btn" onclick="toggleMsgOrder()" title="Toggle message order (newest/oldest first)"><span>&#8645;</span> <span>Newest first</span></button>
-                <button class="conv-ctrl-btn" id="load-all-btn" onclick="loadAllMessages()" title="Render every remaining message now">&#9759; Load All</button>
-            </div>
-        </div>
-        <div id="conversation-content">
-            <div class="view-loading">Loading conversation…</div>
-        </div>
-    </div>
-    <script src="/static/js/vendor/marked.min.js"></script>
-    <script src="/static/js/vendor/purify.min.js"></script>
-    <script src="/static/js/vendor/highlight.min.js"></script>
-    <script src="/static/js/state.js"></script>
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/theme.js"></script>
-    <script src="/static/js/conversation.js"></script>
-    <script src="/static/js/bookmarks.js"></script>
-    <script src="/static/js/clipboard.js"></script>
-    <script src="/static/js/sync.js"></script>
-    <script src="/static/js/search.js"></script>
-    <script>
-        (function() {
-            var p = new URLSearchParams(window.location.search);
-            currentProjectId = p.get('project');
-            currentSessionId = p.get('session');
-            currentSource = p.get('source') || 'claude-code';
-            var jumpAnchor = p.get('anchor');
-            var titleEl = document.getElementById('view-title');
-            titleEl.textContent = currentSessionId || 'Conversation';
+{% with focus=True %}{% include '_dialogs.html' %}{% endwith %}
 
-            // Re-fetch sync status now that currentSource is set
-            if (typeof fetchSyncStatus === 'function') fetchSyncStatus();
-            if (typeof loadBookmarks === 'function') loadBookmarks();
-
-            // Wire up search input + Cmd/Ctrl+K + Esc to close modal
-            var searchInput = document.getElementById('global-search-input');
-            if (searchInput) {
-                searchInput.addEventListener('input', function(e) {
-                    clearTimeout(searchTimeout);
-                    var q = e.target.value;
-                    searchTimeout = setTimeout(function() { searchConversations(q); }, 300);
-                });
-            }
-            document.addEventListener('keydown', function(e) {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); toggleSearch(); }
-                if (e.key === 'Escape') {
-                    var m = document.getElementById('search-modal');
-                    if (m && m.classList.contains('active')) toggleSearch();
-                }
-            });
-
-            // In focus mode, search results open in another focus tab
-            // (no projects/sessions panels here to navigate within).
-            window.selectSearchResult = function(projectId, sessionId) {
-                toggleSearch();
-                var url = '/view?source=' + encodeURIComponent(currentSource) +
-                          '&project=' + encodeURIComponent(projectId) +
-                          '&session=' + encodeURIComponent(sessionId);
-                window.open(url, '_blank', 'noopener');
-            };
-            if (!currentProjectId || !currentSessionId) {
-                document.getElementById('conversation-content').innerHTML =
-                    '<div class="view-loading">Missing project or session in URL.</div>';
-                return;
-            }
-            fetch('/api/projects/' + encodeURIComponent(currentProjectId) +
-                  '/sessions/' + encodeURIComponent(currentSessionId) +
-                  '?source=' + encodeURIComponent(currentSource))
-                .then(function(r) { return r.json(); })
-                .then(function(conv) {
-                    if (conv.error) {
-                        document.getElementById('conversation-content').innerHTML =
-                            '<div class="view-loading">Error: ' + conv.error + '</div>';
-                        return;
-                    }
-                    renderConversation(conv);
-                    // If we arrived via a bookmark, load all then jump to it.
-                    if (jumpAnchor && typeof loadAllMessages === 'function') {
-                        loadAllMessages(function() {
-                            requestAnimationFrame(function() {
-                                if (typeof scrollToAnchor === 'function') scrollToAnchor(jumpAnchor);
-                            });
-                        });
-                    }
-                })
-                .catch(function(e) {
-                    document.getElementById('conversation-content').innerHTML =
-                        '<div class="view-loading">Failed to load: ' + (e && e.message ? e.message : e) + '</div>';
-                });
-        })();
-    </script>
+    <script src="{{ asset('vendor.js') }}"></script>
+    <script src="{{ asset('view.js') }}"></script>
 </body>
 </html>

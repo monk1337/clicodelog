@@ -11,6 +11,7 @@ own lines and parses only those. Opening a session is O(file) once for the
 scan, and every page after that is O(page).
 """
 
+import hashlib
 import json
 import threading
 from array import array
@@ -48,13 +49,27 @@ def clear_cache() -> None:
         _tables.clear()
 
 
+def uuid_key(value: str) -> int:
+    """A 63-bit digest of a message uuid.
+
+    Storing the uuid strings themselves would cost ~17 MB on the largest
+    session here; a parallel array of digests costs 8 bytes per message. A hit
+    is confirmed by reading the message back, so a collision cannot mis-target.
+    """
+    if not value:
+        return 0
+    d = hashlib.blake2b(value.encode("utf-8", "ignore"), digest_size=8).digest()
+    return int.from_bytes(d, "big") & 0x7FFFFFFFFFFFFFFF
+
+
 def build_table(path: Path) -> dict:
     """Scan once, remembering where each message-bearing line starts.
 
-    Nothing from the file is retained except offsets and the (small) summaries,
-    so this stays flat in memory regardless of file size.
+    Nothing from the file is retained except offsets, uuid digests and the
+    (small) summaries, so this stays flat in memory regardless of file size.
     """
     offsets = array("q")
+    uuids = array("q")
     summaries: list = []
     pos = 0
     with open(path, "rb") as fh:
@@ -81,7 +96,21 @@ def build_table(path: Path) -> dict:
                     summaries.append(s)
             elif etype in ("user", "assistant"):
                 offsets.append(start)
-    return {"offsets": offsets, "summaries": summaries}
+                u = entry.get("uuid")
+                uuids.append(uuid_key(u) if isinstance(u, str) else 0)
+    return {"offsets": offsets, "uuids": uuids, "summaries": summaries}
+
+
+def index_of_uuid(path: Path, size: int, mtime: float, target: str) -> int:
+    """Message index for a uuid, or -1. Used to jump straight to a bookmark."""
+    if not target:
+        return -1
+    table = table_for(path, size, mtime)
+    try:
+        # array.index scans in C — fast enough to be imperceptible at 90k.
+        return table["uuids"].index(uuid_key(target))
+    except ValueError:
+        return -1
 
 
 def table_for(path: Path, size: int, mtime: float) -> dict:
@@ -94,17 +123,22 @@ def table_for(path: Path, size: int, mtime: float) -> dict:
 
 
 def read_window(path: Path, size: int, mtime: float, offset: int,
-                limit: int | None, tail: bool = False) -> tuple[list, int, list, int]:
+                limit: int | None, tail: bool = False,
+                center: int | None = None) -> tuple[list, int, list, int]:
     """Return (messages, total, summaries, start) for one page.
 
-    tail=True reads the LAST `limit` messages. The viewer defaults to
+    tail=True reads the LAST `limit` messages — the viewer defaults to
     newest-first, so it needs the end of the conversation, not the beginning.
+    center=<index> reads a window around that message, which is how a bookmark
+    opens instantly instead of loading everything before it.
     """
     table = table_for(path, size, mtime)
     offsets = table["offsets"]
     total = len(offsets)
 
-    if tail and limit is not None:
+    if center is not None and limit is not None:
+        start = max(0, min(center - limit // 2, max(0, total - limit)))
+    elif tail and limit is not None:
         start = max(0, total - limit)
     else:
         start = max(0, min(offset, total))

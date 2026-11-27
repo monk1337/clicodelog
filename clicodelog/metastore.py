@@ -27,6 +27,13 @@ log = get_logger(__name__)
 DB_FILE = APP_DATA_DIR / "meta.db"
 SCHEMA_VERSION = 1
 
+# Bump whenever scan.py starts extracting something differently. Rows are only
+# re-read when a file's (size, mtime) changes, so without this an improved
+# extractor would never reach sessions that are finished and no longer change.
+#   2: titles skip Claude Code's "This session is being continued…" preamble.
+#   3: ...and the "[Image: …]" / "[Request interrupted by user…]" markers.
+SCAN_VERSION = 3
+
 SCHEMA = """
 PRAGMA journal_mode=WAL;
 PRAGMA synchronous=NORMAL;
@@ -244,6 +251,12 @@ def refresh_index(source_id: str | None = None, *, force: bool = False) -> dict:
     return result
 
 
+def _scan_version_current(conn, sid: str) -> bool:
+    r = conn.execute("SELECT value FROM meta WHERE key=?",
+                     (f"scan_version:{sid}",)).fetchone()
+    return r is not None and r["value"] == str(SCAN_VERSION)
+
+
 def _refresh_one(sid: str, data_dir: Path, force: bool) -> dict:
     conn = connect()
     started = time.monotonic()
@@ -256,6 +269,13 @@ def _refresh_one(sid: str, data_dir: Path, force: bool) -> dict:
         conn.execute("DELETE FROM sessions WHERE source=?", (sid,))
         conn.commit()
 
+    # An outdated extractor re-reads every file once, but replaces rows in
+    # place rather than deleting first, so listings stay populated meanwhile.
+    rescan_all = bool(known) and not _scan_version_current(conn, sid)
+    if rescan_all:
+        log.info("Index %s: extraction changed (scan v%s); re-reading every session once",
+                 sid, SCAN_VERSION)
+
     seen, batch, changed = set(), [], 0
     for f, project_dir in session_files(sid, data_dir):
         key = str(f)
@@ -265,7 +285,8 @@ def _refresh_one(sid: str, data_dir: Path, force: bool) -> dict:
         except OSError:
             continue
         prev = known.get(key)
-        if prev and prev[0] == st.st_size and prev[1] == st.st_mtime:
+        if (not rescan_all and prev
+                and prev[0] == st.st_size and prev[1] == st.st_mtime):
             continue                                  # unchanged
         row = _row_for(sid, f, project_dir)
         if row:
@@ -280,6 +301,9 @@ def _refresh_one(sid: str, data_dir: Path, force: bool) -> dict:
     gone = [p for p in known if p not in seen]
     if gone:
         conn.executemany("DELETE FROM sessions WHERE path=?", [(p,) for p in gone])
+    # Every row now comes from the current extractor.
+    conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
+                 (f"scan_version:{sid}", str(SCAN_VERSION)))
     conn.commit()
 
     counts = conn.execute(
@@ -429,6 +453,19 @@ def path_project_map(source_id: str) -> dict:
             for r in connect().execute(
                 "SELECT path, project_id, project_name FROM sessions WHERE source=?",
                 (source_id,))}
+
+
+def session_info(source_id: str, project_id: str, session_id: str) -> dict | None:
+    """The listing row for one session: what the conversation header shows.
+
+    Sent with the conversation so the header is right even when the session
+    is not in the sidebar's loaded page — a focus tab, a bookmark, a search hit
+    in a project with 10,000 sessions.
+    """
+    r = connect().execute(
+        f"SELECT {LIST_COLUMNS} FROM sessions WHERE source=? AND session_id=? AND project_id=? "
+        "LIMIT 1", (source_id, session_id, project_id)).fetchone()
+    return _row_to_listing(r) if r else None
 
 
 def summaries_for(source_id: str, keys: list) -> dict:

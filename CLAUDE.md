@@ -116,6 +116,9 @@ The root `app.py` and `requirements.txt` are legacy Flask artifacts — ignore t
   the display name from the session's recorded `cwd`.
 - **Validate route ids with `is_safe_id` / `safe_child`** before joining them
   into a filesystem path.
+- **README screenshots come from `scripts/demo_data.py`, never from a real
+  `~/.clicodelog`.** Real history is full of private paths, prompts and
+  project names. Build a demo HOME and run with `HOME=<dir> ... --no-sync`.
 - **In the virtual list, never assign `scrollTop` directly; use `vlSetScroll`.**
   Pages that just arrived exist in the offsets but not yet in the spacers, and
   the browser clamps `scrollTop` to the old content: a page prepended above the
@@ -138,7 +141,7 @@ The root `app.py` and `requirements.txt` are legacy Flask artifacts — ignore t
 
 1. Add an entry to `SOURCES` in `config.py`.
 2. Add a reader branch in `scan.py` and an entry-shape branch in
-   `search_index._entry_for`.
+   `metastore._row_for`.
 3. Add a parser module in `parsers/` and export it from `parsers/__init__.py`.
 4. Add an extractor to `fts._EXTRACT`.
 5. Add the source to the parametrised contract test in `tests/test_sources.py`.

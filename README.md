@@ -16,10 +16,11 @@ All in one local interface. Nothing leaves your machine.
 </div>
 
 <p>
-  <a href="#features">Features</a> •
-  <a href="#supported-tools">Supported Tools</a> •
+  <a href="#-whats-new">What's New</a> •
+  <a href="#why-developers-use-it">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
+  <a href="#supported-tools">Supported Tools</a> •
   <a href="#screenshots">Screenshots</a>
 </p>
 
@@ -54,10 +55,9 @@ All in one local interface. Nothing leaves your machine.
 
 ---
 
-| Light Mode | Dark Mode |
-|------------|-----------|
-| ![Light Mode](screenshots/light.png) | ![Dark Mode](screenshots/dark.png) |
-
+<p align="center">
+  <img src="screenshots/ui-light.png" alt="clicodelog: projects, sessions and a conversation" width="100%">
+</p>
 
 ---
 
@@ -98,7 +98,7 @@ A clean Material-style interface, rebuilt so the browser only ever holds what yo
 </tr>
 </table>
 
-### Earlier in this release
+### ⚡ Performance, search and safety
 
 A big round of performance, search and correctness work. Highlights:
 
@@ -204,18 +204,21 @@ clicodelog
 ```
 
 The app will:
-- Auto-kill any process on port **6126** (if occupied)
-- Sync data from all AI coding agent sources
-- Start a web server at **http://localhost:6126**
+- Start a local web server at **http://localhost:6126** and open it in your browser
+- Back up new logs from every supported tool in the background, then hourly
+- Stop a previous clicodelog still holding the port (it never touches other programs)
 
 ### Command Options
 
 ```bash
 clicodelog --help               # Show all options
-clicodelog --port 8080          # Use custom port
-clicodelog --host 0.0.0.0       # Bind to all interfaces
-clicodelog --no-sync            # Skip initial data sync
-clicodelog --debug              # Run in debug mode
+clicodelog --version            # Show the version
+clicodelog --port 8080          # Use another port (default: 6126)
+clicodelog --host 0.0.0.0       # Bind beyond localhost (warns loudly; default: 127.0.0.1)
+clicodelog --no-sync            # Skip the startup sync
+clicodelog --folder myapp       # Only show projects whose name contains "myapp"
+clicodelog --no-browser         # Don't open a browser tab
+clicodelog --debug              # Debug logging
 ```
 
 ### Alternative: Run from source
@@ -276,41 +279,27 @@ python -m clicodelog.cli
 
 ### Gemini CLI
 
-- Sessions stored as JSON files in `{hash}/chats/session-*.json`
-- Groups sessions by project hash
+- Sessions stored as JSON Lines in `{project}/chats/session-*.jsonl`
+- Groups sessions by project folder
 - Displays messages, thoughts (thinking), and tool calls
 - Shows token usage (input, output, cached)
 
 ---
 
-### CLI Options
-
-```bash
-clicodelog --help               # Show help message
-clicodelog --version            # Show version
-clicodelog --port 8080          # Run on custom port (default: 6126)
-clicodelog --host 0.0.0.0       # Bind to all interfaces (default: 127.0.0.1)
-clicodelog --no-sync            # Skip initial data sync
-clicodelog --debug              # Run in debug mode
-```
-
-**Note:** The app automatically kills any process running on the specified port before starting.
-
----
-
 ## How It Works
 
-- **Startup sync** — Copies logs from source directories into local `./data/`
-- **Background sync** — Automatically refreshes every hour
-- **Manual sync** — Trigger a sync for the active source via UI
-- **Source switching** — Switch between Claude Code, Codex, and Gemini CLI
+- **A backup that only grows** — logs are copied into `~/.clicodelog/data/` (copy-on-write clones on macOS, so it costs almost no disk). Nothing is ever deleted from it, so sessions survive even after the tool prunes its own history.
+- **Sync** — at startup, then hourly in the background, or on demand with the Sync button.
+- **An index, not a re-scan** — one small row per session in `~/.clicodelog/meta.db` (SQLite), so projects and session lists open instantly. Full-text search is a separate, optional `fts.db`, built only when you ask.
+- **Load what you look at** — opening a session fetches one window of messages; more arrive as you scroll in either direction, and only the messages on screen are rendered.
+- **Give memory back** — after 5 unused minutes the tab drops what it loaded and the server trims its caches; coming back restores your exact place.
 
 ---
 
 ## Data Storage
 
 ```
-data/
+~/.clicodelog/data/
 ├── claude-code/          # Claude Code backup
 │   ├── -Users-project1/
 │   │   ├── session1.jsonl
@@ -323,11 +312,11 @@ data/
 │           │   └── rollout-xxx.jsonl
 │           └── 17/
 └── gemini/               # Gemini CLI backup
-    ├── {project-hash-1}/
+    ├── {project-1}/
     │   └── chats/
-    │       ├── session-2026-01-17T12-57-xxx.json
-    │       └── session-2026-01-17T13-04-xxx.json
-    └── {project-hash-2}/
+    │       ├── session-2026-01-17T12-57-xxx.jsonl
+    │       └── session-2026-01-17T13-04-xxx.jsonl
+    └── {project-2}/
 ```
 
 ---
@@ -351,9 +340,14 @@ data/
 
 ## Screenshots
 
-| Light Mode | Dark Mode |
-|------------|-----------|
-| ![Light Mode](screenshots/light.png) | ![Dark Mode](screenshots/dark.png) |
+| Light | Dark: thinking and tool calls |
+|-------|-------------------------------|
+| ![Conversation view, light theme](screenshots/ui-light.png) | ![Thinking and tool calls, dark theme](screenshots/ui-dark.png) |
+
+![Search across every conversation with ⌘K](screenshots/ui-search.png)
+
+<sub>All screenshots use a synthetic demo dataset — no real sessions. Recreate it with
+<code>python scripts/demo_data.py /tmp/demo</code> and run <code>HOME=/tmp/demo clicodelog --no-sync</code>.</sub>
 
 ---
 
@@ -395,7 +389,7 @@ clicodelog/
 | `/api/sources/<id>` | POST | Set active source |
 | `/api/projects?source=` | GET | List projects |
 | `/api/projects/<id>/sessions?source=&limit=&offset=` | GET | List sessions (paged) |
-| `/api/projects/<id>/sessions/<id>?source=&limit=&offset=` | GET | Fetch a window of a session |
+| `/api/projects/<id>/sessions/<id>?source=&limit=&offset=&tail=&around_uuid=` | GET | Fetch a window of a session: from an offset, the end, or centred on a message |
 | `/api/projects/<id>/sessions/<id>/subagents?source=` | GET | List sub-agent sessions |
 | `/api/projects/<id>/sessions/<id>/export?fmt=txt\|md` | GET | Export as text or Markdown |
 | `/api/projects/<id>/sessions/<id>/export-raw` | GET | Stream the exact source file |
@@ -405,8 +399,12 @@ clicodelog/
 | `/api/stats?source=&group=day\|project\|model\|tool` | GET | Token usage analytics |
 | `/api/files?path=&source=` | GET | Which sessions edited a file |
 | `/api/bookmarks` | GET/POST | List or add bookmarks |
+| `/api/bookmarks/<id>` | DELETE | Remove a bookmark |
+| `/api/projects/<id>/meta?source=` | GET/PUT | Custom project name and tags |
+| `/api/tags?source=` | GET | All project tags |
 | `/api/sync?source=` | POST | Trigger sync |
 | `/api/status?source=` | GET | Sync status and free disk |
+| `/bundle/<hash>/<name>` | GET | Versioned CSS/JS bundles (cached permanently) |
 
 ---
 
@@ -458,15 +456,20 @@ Then wire up the rest:
    it asserts a source with files on disk yields at least one session, which is
    exactly the check that would have caught Gemini going silently empty.
 
-```
- @misc{clicodelog2026,                                                                                                                                                      
+---
+
+## Citation
+
+```bibtex
+@misc{clicodelog2026,
     title        = {clicodelog: Unified Session Inspector for CLI AI Coding Agents},
-    author       = {Pal, Ankit},                                                                                                                                             
+    author       = {Pal, Ankit},
     year         = {2026},
-    howpublished = {\url{https://github.com/monk1337/clicodelog}},                                                                                                           
-    note         = {Local web UI for browsing Claude Code, OpenAI Codex, and Gemini CLI session logs - thinking blocks, tool calls, file edits, and token costs}             
-  }       
+    howpublished = {\url{https://github.com/monk1337/clicodelog}},
+    note         = {Local web UI for browsing Claude Code, OpenAI Codex, and Gemini CLI session logs - thinking blocks, tool calls, file edits, and token costs}
+}
 ```
+
 ---
 
 ## License
@@ -478,7 +481,3 @@ MIT
 <div align="center">
 <sub>Built for inspecting what AI coding agents actually did.</sub>
 </div>
-
-```
-
-

@@ -3,245 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Conversation History</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/variables.css">
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/layout.css">
-    <link rel="stylesheet" href="/static/css/list.css">
-    <link rel="stylesheet" href="/static/css/messages.css">
-    <link rel="stylesheet" href="/static/css/controls.css">
-    <link rel="stylesheet" href="/static/css/search.css">
-    <link rel="stylesheet" href="/static/css/tags.css">
-    <link rel="stylesheet" href="/static/css/misc.css">
-    <link rel="stylesheet" href="/static/css/organize.css">
+    <meta name="color-scheme" content="light dark">
+    <title>clicodelog</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230b57d0'/%3E%3Cpath d='m9 11 5 5-5 5M17 21h6' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))}catch(e){}</script>
+    <link rel="stylesheet" href="{{ asset('app.css') }}">
 </head>
 <body class="hide-tool-boxes">
-    <div id="source-warning" role="status"></div>
-    <!-- Top Controls -->
-    <div class="top-controls">
-        <div class="source-selector">
-            <label>Source:</label>
-            <select id="source-select" onchange="changeSource(this.value)">
+{% include '_icons.html' %}
+    <header class="appbar">
+        <button class="icon-btn nav-toggle" onclick="toggleNav()" title="Projects" aria-label="Show projects"><svg class="i"><use href="#i-folder"/></svg></button>
+        <a class="brand" href="/" title="clicodelog">
+            <span class="brand-mark"><svg class="i"><use href="#i-logo"/></svg></span>
+            <span class="brand-name">clicodelog</span>
+        </a>
+        <label class="source-switch" title="Which tool's history to browse">
+            <span class="sr-only">Source</span>
+            <select id="source-select" class="select" onchange="changeSource(this.value)">
                 <option value="claude-code">Claude Code</option>
-                <option value="codex">OpenAI Codex</option>
-                <option value="gemini">Google Gemini</option>
             </select>
+        </label>
+        <button class="search-trigger" id="search-btn" onclick="toggleSearch()" title="Search every conversation (⌘K)">
+            <svg class="i"><use href="#i-search"/></svg>
+            <span class="search-trigger-text">Search conversations</span>
+            <kbd>⌘K</kbd>
+        </button>
+        <div class="appbar-actions">
+            <span class="sync-status" id="sync-status" title="Last sync time"></span>
+            <button class="icon-btn" id="sync-btn" onclick="manualSync()" title="Sync now" aria-label="Sync now"><svg class="i"><use href="#i-sync"/></svg></button>
+            <button class="icon-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="Bookmarks" aria-label="Bookmarks"><svg class="i"><use href="#i-star"/></svg></button>
+            <button class="icon-btn" id="stats-btn" onclick="toggleStats()" title="Usage" aria-label="Usage"><svg class="i"><use href="#i-chart"/></svg></button>
+            <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><svg class="i" id="theme-icon"><use href="#i-moon"/></svg></button>
         </div>
-        <span class="sync-status" id="sync-status" title="Last sync time">Syncing...</span>
-        <button class="control-btn" id="thinking-toggle-btn" onclick="toggleAllThinking()" title="Toggle all thinking blocks">
-            <span class="icon">🧠</span>
-            <span>Show Thinking</span>
-        </button>
-        <button class="control-btn active" id="tools-toggle-btn" onclick="toggleToolBoxes()" title="Hide/show tool boxes (Bash, Read, etc.)">
-            <span class="icon">🧰</span>
-            <span>Show Tools</span>
-        </button>
-        <button class="control-btn" id="bookmarks-btn" onclick="openBookmarksPanel()" title="View all pinned messages">
-            <span class="icon">⭐</span>
-            <span>Bookmarks</span>
-        </button>
-        <button class="control-btn" id="search-btn" onclick="toggleSearch()" title="Search conversations">
-            <span class="icon">🔍</span>
-            <span>Search</span>
-        </button>
-        <button class="control-btn" id="copy-btn" onclick="copyConversation()" title="Copy conversation to clipboard" disabled>
-            <span class="icon">📋</span>
-            <span>Copy</span>
-        </button>
-        <button class="control-btn" id="export-btn" onclick="exportConversation()" title="Export readable TXT (full tool input + output; filtered if a date range is set)" disabled>
-            <span class="icon">📥</span>
-            <span>Export</span>
-        </button>
-        <button class="control-btn" id="export-md-btn" onclick="exportMarkdown()" title="Export Markdown for issues, PRs and notes" disabled>
-            <span class="icon">📝</span>
-            <span>MD</span>
-        </button>
-        <button class="control-btn" id="export-raw-btn" onclick="exportRawConversation()" title="Export the exact raw source file (everything, nothing omitted)" disabled>
-            <span class="icon">🧬</span>
-            <span>Raw</span>
-        </button>
-        <button class="control-btn" id="stats-btn" onclick="toggleStats()" title="Token usage by day, project and model">
-            <span class="icon">📊</span>
-            <span>Stats</span>
-        </button>
-        <button class="control-btn" id="sync-btn" onclick="manualSync()" title="Sync data now">
-            <span class="icon">🔄</span>
-            <span>Sync</span>
-        </button>
-        <button class="control-btn" onclick="toggleTheme()" title="Toggle theme">
-            <span class="icon" id="theme-icon">🌙</span>
-            <span id="theme-label">Dark</span>
-        </button>
-    </div>
+    </header>
+    <div id="source-warning" class="banner" role="status" hidden></div>
 
-    <!-- Search Modal -->
-    <div class="search-modal" id="search-modal">
-        <div class="search-modal-header">
-            <h3>Search Conversations</h3>
-            <span class="search-modal-close" onclick="toggleSearch()">✕</span>
-        </div>
-        <div class="search-input-container">
-            <input type="text" id="global-search-input" placeholder="Search across all conversations...">
-        </div>
-        <div class="search-modal-content" id="search-results">
-            <div class="no-search-results">Type to search across conversations</div>
-        </div>
-        <div class="search-status" id="index-status"></div>
-    </div>
-
-    <!-- Stats -->
-    <div class="search-modal" id="stats-modal">
-        <div class="search-modal-header">
-            <h3>📊 Usage</h3>
-            <span class="search-modal-close" onclick="toggleStats()">✕</span>
-        </div>
-        <div class="stats-tabs">
-            <button class="stats-tab active" data-group="day" onclick="setStatsGroup('day')">By day</button>
-            <button class="stats-tab" data-group="project" onclick="setStatsGroup('project')">By project</button>
-            <button class="stats-tab" data-group="model" onclick="setStatsGroup('model')">By model</button>
-            <button class="stats-tab" data-group="tool" onclick="setStatsGroup('tool')">Tools</button>
-        </div>
-        <div class="search-modal-content" id="stats-body"></div>
-    </div>
-
-    <div class="bookmarks-panel" id="bookmarks-panel">
-        <div class="bookmarks-header">
-            <h3>⭐ Bookmarks</h3>
-            <span class="bookmarks-close" onclick="closeBookmarksPanel()">✕</span>
-        </div>
-        <div class="bookmarks-list" id="bookmarks-list"></div>
-    </div>
-
-    <div class="app">
-        <!-- Projects Panel -->
-        <div class="panel" id="projects-panel" style="width: 280px; min-width: 180px; max-width: 500px; flex-shrink: 0;">
-            <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+    <main class="app">
+        <nav class="pane nav-pane" id="projects-panel" aria-label="Projects">
+            <div class="pane-head">
                 <h2>Projects</h2>
-                <select id="project-sort" onchange="changeProjectSort(this.value)" title="Sort projects" style="font-size:11px; padding:3px 6px; background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; cursor:pointer;">
-                    <option value="name">Name (A–Z)</option>
-                    <option value="recent">Latest update</option>
+                <select id="project-sort" class="select select-sm" onchange="changeProjectSort(this.value)" title="Sort projects">
+                    <option value="name">A–Z</option>
+                    <option value="recent">Recent</option>
                     <option value="sessions">Most sessions</option>
                 </select>
             </div>
-            <div class="search-box">
-                <input type="text" id="project-search" placeholder="Search projects...">
+            <label class="field field-search">
+                <svg class="i"><use href="#i-search"/></svg>
+                <input type="search" id="project-search" placeholder="Filter projects" autocomplete="off" spellcheck="false">
+            </label>
+            <div class="tag-filter-bar" id="tag-filter-bar" hidden></div>
+            <div class="pane-body" id="projects-list">
+                <div class="loading"><div class="spinner"></div>Loading projects…</div>
             </div>
-            <div class="tag-filter-bar" id="tag-filter-bar"></div>
-            <div class="panel-content" id="projects-list">
-                <div class="loading"><div class="spinner"></div>Loading projects...</div>
-            </div>
+        </nav>
+
+        <div class="resize-handle" id="resize-handle-1" title="Drag to resize · double-click to reset"></div>
+
+        <div class="workspace">
+            <section class="pane sessions-pane" id="sessions-panel" aria-label="Sessions">
+                <div class="pane-head">
+                    <h2>Sessions <span class="count" id="sessions-count"></span></h2>
+                </div>
+                <div class="session-filters" id="session-filters" hidden>
+                    <select id="filter-sort" class="select select-sm" onchange="applySessionFilters()" title="Sort">
+                        <option value="newest">Newest</option>
+                        <option value="oldest">Oldest</option>
+                        <option value="largest">Largest</option>
+                        <option value="messages">Most messages</option>
+                    </select>
+                    <select id="filter-date" class="select select-sm" onchange="applySessionFilters()" title="When">
+                        <option value="all">Any time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This week</option>
+                        <option value="month">This month</option>
+                        <option value="older">Older</option>
+                    </select>
+                    <select id="filter-size" class="select select-sm" onchange="applySessionFilters()" title="Size">
+                        <option value="all">Any size</option>
+                        <option value="<10KB">&lt; 10 KB</option>
+                        <option value="10-100KB">10–100 KB</option>
+                        <option value="100KB-1MB">100 KB–1 MB</option>
+                        <option value=">1MB">&gt; 1 MB</option>
+                    </select>
+                    <button class="btn btn-text sm" id="filter-reset" onclick="resetSessionFilters()" hidden>Reset</button>
+                </div>
+                <div class="pane-body" id="sessions-list">
+                    <div class="empty-state"><p>Select a project to see its sessions</p></div>
+                </div>
+            </section>
+
+            <div class="resize-handle inner" id="resize-handle-2" title="Drag to resize · double-click to reset"></div>
+
+            <section class="pane conv-pane" id="conversation-panel" aria-label="Conversation">
+{% include '_conversation.html' %}
+            </section>
         </div>
+    </main>
 
-        <div class="resize-handle" id="resize-handle-1"></div>
+{% include '_dialogs.html' %}
 
-        <!-- Sessions Panel -->
-        <div class="panel" id="sessions-panel" style="width: 320px; min-width: 200px; max-width: 600px; flex-shrink: 0;">
-            <div class="panel-header"><h2>Sessions</h2></div>
-            <div class="session-filters" id="session-filters" style="display: none;">
-                <select id="filter-size" onchange="applySessionFilters()">
-                    <option value="all">Size: All</option>
-                    <option value="<10KB">&lt;10KB</option>
-                    <option value="10-100KB">10-100KB</option>
-                    <option value="100KB-1MB">100KB-1MB</option>
-                    <option value=">1MB">&gt;1MB</option>
-                </select>
-                <select id="filter-date" onchange="applySessionFilters()">
-                    <option value="all">Date: All</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="older">Older</option>
-                </select>
-                <select id="filter-sort" onchange="applySessionFilters()">
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="largest">Largest First</option>
-                    <option value="messages">Most Messages</option>
-                </select>
-                <button class="filter-reset-btn" onclick="resetSessionFilters()">Reset</button>
-            </div>
-            <div class="panel-content" id="sessions-list">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📁</div>
-                    <p>Select a project to view sessions</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="resize-handle" id="resize-handle-2"></div>
-
-        <!-- Conversation Panel -->
-        <div class="panel conversation-panel" id="conversation-panel" style="flex: 1; min-width: 300px;">
-            <div class="conv-filter-bar" id="conv-filter-bar" style="display:none">
-                <div class="role-filter-group">
-                    <button class="role-btn" data-filter="user" onclick="toggleRoleFilter('user')">User</button>
-                    <button class="role-btn" data-filter="assistant" onclick="toggleRoleFilter('assistant')">AI</button>
-                    <button class="role-btn" data-filter="tools" onclick="toggleRoleFilter('tools')">Tools</button>
-                    <label class="unique-toggle" title="Show each distinct message once, with a ×N count of how often it repeats">
-                        <input type="checkbox" onchange="toggleUniqueOnly(this.checked)"> Unique only
-                    </label>
-                    <span class="unique-status" id="unique-status"></span>
-                </div>
-                <div class="conv-date-group">
-                    <label class="conv-date-label">From</label>
-                    <input type="date" id="date-from" class="conv-date-input">
-                    <label class="conv-date-label">To</label>
-                    <input type="date" id="date-to" class="conv-date-input">
-                    <button class="conv-ctrl-btn" id="apply-filter-btn" onclick="applyDateFilter()" title="Apply date range">Apply</button>
-                    <button class="conv-ctrl-btn" onclick="clearDateFilter()" title="Clear date filter">Clear</button>
-                    <span class="conv-filter-loading" id="conv-filter-loading" style="display:none"><span class="mini-spinner"></span>Filtering…</span>
-                    <span class="conv-filter-status" id="conv-filter-status"></span>
-                </div>
-                <div class="conv-search-group">
-                    <input type="text" id="conv-search-input" class="conv-search-input" placeholder="Find in this conversation…" onkeydown="if(event.key==='Enter'){event.shiftKey?convSearchPrev():convSearchNext();}">
-                    <button class="conv-ctrl-btn" onclick="runConvSearch()" title="Search the full conversation">Find</button>
-                    <button class="conv-ctrl-btn" onclick="convSearchPrev()" title="Previous match">&#8593;</button>
-                    <button class="conv-ctrl-btn" onclick="convSearchNext()" title="Next match">&#8595;</button>
-                    <button class="conv-ctrl-btn" onclick="clearConvSearch()" title="Clear find">&#10005;</button>
-                    <span class="conv-filter-status" id="conv-search-status"></span>
-                </div>
-                <div class="conv-nav-btns">
-                    <button class="conv-ctrl-btn" id="msg-order-btn" onclick="toggleMsgOrder()" title="Toggle message order (newest/oldest first)"><span>&#8645;</span> <span>Newest first</span></button>
-                    <button class="conv-ctrl-btn" id="load-all-btn" onclick="loadAllMessages()" title="Render every remaining message now">&#9759; Load All</button>
-                    <button class="conv-ctrl-btn" onclick="scrollConvToTop()" title="Scroll to top">&#8593; Top</button>
-                    <button class="conv-ctrl-btn" onclick="scrollConvToBottom()" title="Scroll to bottom">&#8595; End</button>
-                    <button class="conv-ctrl-btn" id="fullscreen-btn" onclick="openFocusView()" title="Open this conversation in a focused new tab">&#10696; Focus</button>
-                </div>
-            </div>
-            <div id="conversation-content">
-                <div class="empty-state">
-                    <div class="empty-state-icon">💬</div>
-                    <h3>AI Conversation History</h3>
-                    <p>Select a session to view the conversation</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="/static/js/vendor/marked.min.js"></script>
-    <script src="/static/js/vendor/purify.min.js"></script>
-    <script src="/static/js/vendor/highlight.min.js"></script>
-    <script src="/static/js/state.js"></script>
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/theme.js"></script>
-    <script src="/static/js/resize.js"></script>
-    <script src="/static/js/tags.js"></script>
-    <script src="/static/js/sync.js"></script>
-    <script src="/static/js/router.js"></script>
-    <script src="/static/js/projects.js"></script>
-    <script src="/static/js/sessions.js"></script>
-    <script src="/static/js/conversation.js"></script>
-    <script src="/static/js/bookmarks.js"></script>
-    <script src="/static/js/bookmarks-panel.js"></script>
-    <script src="/static/js/unique.js"></script>
-    <script src="/static/js/search.js"></script>
-    <script src="/static/js/stats.js"></script>
-    <script src="/static/js/clipboard.js"></script>
-    <script src="/static/js/main.js"></script>
-    <script>if (typeof loadBookmarks === 'function') loadBookmarks();</script>
+    <script src="{{ asset('vendor.js') }}"></script>
+    <script src="{{ asset('app.js') }}"></script>
 </body>
 </html>

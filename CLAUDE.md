@@ -17,6 +17,9 @@ uv run python -m clicodelog.cli
 clicodelog --port 8080      # custom port (default: 6126)
 clicodelog --no-sync        # skip initial sync (faster startup for dev)
 clicodelog --debug          # debug logging to console as well as file
+clicodelog --no-browser     # don't open a tab on start (use for test servers)
+CLICODELOG_IDLE_SECONDS=30 clicodelog ...   # shorter idle trim, for testing
+# Append ?idle=10 to the page URL to discard an unused tab after 10 s.
 
 # Tests
 uv run python -m pytest tests/ -q
@@ -52,7 +55,9 @@ There are three layers, and keeping them straight is the main thing:
 ```
 clicodelog/
 ├── cli.py            # argparse entry point -> server.run_server()
-├── app.py            # FastAPI setup, cache policy, template routes
+├── app.py            # FastAPI setup, cache policy, template + bundle routes
+├── assets.py         # BUNDLES: the CSS/JS files each page loads, in order
+├── reaper.py         # drops caches + returns heap to the OS after 5 idle min
 ├── config.py         # SOURCES dict, DATA_DIR, APP_DATA_DIR, constants
 ├── logging_setup.py  # rotating file log at ~/.clicodelog/clicodelog.log
 ├── storage.py        # atomic JSON read/write, quarantine, disk checks
@@ -71,7 +76,12 @@ clicodelog/
 ├── routes/           # projects, search, export, sync, sources, bookmarks, stats
 ├── static/css/*.css
 ├── static/js/*.js    # vanilla, no build step; vendor/ holds marked+purify+hljs
-└── templates/        # index.html, view.html
+│   ├── conv-data.js  #   paging + the display model (buildView applies filters)
+│   ├── conv-list.js  #   virtual list: spacers, measurements, scroll anchor
+│   ├── conv-edges.js #   paging at the list's ends, scroll-to helpers
+│   ├── conv-message.js / conv-head.js / conv-view.js / conversation.js
+│   └── idle.js       #   tab discarding after 5 idle minutes
+└── templates/        # index.html, view.html + _icons/_conversation/_dialogs
 ```
 
 The root `app.py` and `requirements.txt` are legacy Flask artifacts — ignore them.
@@ -106,6 +116,23 @@ The root `app.py` and `requirements.txt` are legacy Flask artifacts — ignore t
   the display name from the session's recorded `cwd`.
 - **Validate route ids with `is_safe_id` / `safe_child`** before joining them
   into a filesystem path.
+- **In the virtual list, never assign `scrollTop` directly; use `vlSetScroll`.**
+  Pages that just arrived exist in the offsets but not yet in the spacers, and
+  the browser clamps `scrollTop` to the old content: a page prepended above the
+  reader threw them ~460 messages away.
+- **Reading position is the anchor (`VL.anchor`), restored after every layout
+  change by `vlHoldAnchor`.** Correcting `scrollTop` by deltas lost the position
+  whenever a size recalibration and a range change landed in the same frame.
+- **Never put `snippet()` in an FTS query whose rows get sorted, and rank in
+  the FTS table alone before joining.** SQLite built a snippet for every match
+  before `ORDER BY` discarded them (1.1 s for "error"), and joining first
+  fetched a row per match (1.2 s for "the"). Keep the `+f.source` that stops
+  the planner probing every file per candidate.
+- **Don't mark code blocks with `dataset.highlighted`.** highlight.js sets that
+  itself and refuses, with a console warning, to touch an element that has it.
+- **A poll that doesn't mean someone is reading must be in
+  `reaper.PASSIVE_PATHS`**, or a visible tab keeps the server from ever
+  counting as idle.
 
 ## Adding a source
 
@@ -127,7 +154,18 @@ adding more. This applies to Python, JS and CSS.
 
 ## Frontend
 
-`static/js/` is vanilla JS with no build step, loaded as ordered script tags.
-State lives in globals declared in `state.js`. All DOM construction uses
-`createElement`/`textContent` — never `innerHTML` with dynamic data. The one
-exception is sanitized markdown, which goes through DOMPurify.
+`static/js/` is vanilla JS with no build step. Pages load content-hashed
+bundles (`/bundle/<hash>/app.js`, `view.js`, `vendor.js`, `app.css`) that
+`assets.py` concatenates at request time, rebuilt when any file changes. **The
+order in `assets.BUNDLES` is load order, and a file not listed there is not
+loaded at all.** Scripts share one global scope; state lives in globals
+declared in `state.js`. All DOM construction uses `createElement`/
+`textContent` — never `innerHTML` with dynamic data. The one exception is
+sanitized markdown, which goes through DOMPurify. Icons come from the SVG
+sprite in `templates/_icons.html` via `icon(name)`.
+
+The conversation is a virtual list: only messages near the viewport exist in
+the DOM. Filters (role, tools, date, Unique only) are applied to data in
+`buildView()`, never by hiding rendered nodes with CSS. Messages are keyed by
+`msg._i`, their raw index in the session file, which stays stable as pages
+arrive at either end.

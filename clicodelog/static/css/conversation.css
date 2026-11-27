@@ -1,0 +1,113 @@
+/* The reader: scroller, header, sticky toolbar, the virtual list. */
+
+.conv-scroller {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    /* The virtual list holds the reading position itself; the browser's own
+       scroll anchoring would correct the same shift a second time. */
+    overflow-anchor: none;
+    scroll-padding-top: 76px;
+    overscroll-behavior: contain;
+}
+
+.conv-head {
+    max-width: calc(var(--reading) + 64px);
+    margin: 0 auto; padding: 28px 32px 14px;
+}
+.conv-head:empty { display: none; }
+.conv-title {
+    font-size: 22px; line-height: 30px; font-weight: 500; letter-spacing: -0.005em;
+    word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.conv-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px;
+    margin-top: 6px; color: var(--text-2); font-size: 13px;
+}
+.conv-meta-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.conv-meta-item .i { width: 16px; height: 16px; color: var(--text-3); }
+.conv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+
+.conv-toolbar {
+    position: sticky; top: 0; z-index: 5;
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--line);
+}
+.tb-row, .tb-status {
+    max-width: calc(var(--reading) + 64px);
+    margin: 0 auto; padding: 8px 32px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.tb-status { padding-top: 0; gap: 12px; font-size: 12px; color: var(--text-3); }
+.tb-status:not(:has(#conv-filter-status:not(:empty), .busy:not([hidden]))) { display: none; }
+.busy { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); }
+
+.find {
+    flex: 1 1 200px; min-width: 160px; max-width: 380px;
+    display: flex; align-items: center; gap: 2px;
+    height: 36px; padding: 0 4px 0 12px;
+    border-radius: var(--r-full);
+    background: var(--surface-dim);
+    transition: background 0.15s, box-shadow 0.15s;
+}
+.find:focus-within { background: var(--surface); box-shadow: inset 0 0 0 2px var(--primary); }
+.find > .i { width: 18px; height: 18px; color: var(--text-3); }
+.find input { flex: 1; min-width: 0; padding: 0 6px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 14px; }
+.find-count { padding: 0 4px; font-size: 12px; color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.find .icon-btn.sm { width: 28px; height: 28px; }
+.find .icon-btn.sm .i { width: 16px; height: 16px; }
+
+.conv-body { padding-bottom: 64px; }
+.conv-body > .empty-state, .conv-body > .loading { min-height: calc(100vh - 220px); }
+.conv-list { max-width: calc(var(--reading) + 64px); margin: 0 auto; padding: 4px 32px 0; }
+.vl-items { display: block; }
+/* Spacing lives inside each item (padding) so the measured height includes it. */
+.vl-item { padding: 10px 0; }
+.vl-edge {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    height: 44px; font-size: 12px; color: var(--text-3);
+}
+.vl-edge.loading::before {
+    content: ''; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--surface-3); border-top-color: var(--primary);
+    animation: spin 0.7s linear infinite;
+}
+.vl-empty { padding: 56px 16px; text-align: center; color: var(--text-3); font-size: 14px; }
+
+.conv-summaries {
+    max-width: calc(var(--reading) + 64px);
+    margin: 6px auto 0; padding: 0 32px;
+    font-size: 13px; color: var(--text-2);
+}
+.conv-summaries > summary {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 12px; border-radius: var(--r-full);
+    background: var(--surface-dim); cursor: pointer; list-style: none;
+    font-weight: 500;
+}
+.conv-summaries > summary::-webkit-details-marker { display: none; }
+.summary-tag { margin: 8px 0 0; padding: 8px 12px; border-left: 2px solid var(--line-strong); }
+
+/* Jump to either end: floating, so the toolbar never has to wrap for them. */
+.jump-fabs {
+    position: absolute; right: 20px; bottom: 20px; z-index: 6;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.fab {
+    display: grid; place-items: center;
+    width: 40px; height: 40px; border: 0; border-radius: var(--r-m);
+    background: var(--surface); color: var(--text-2);
+    box-shadow: var(--shadow-2);
+    opacity: 0.92; transition: opacity 0.15s, box-shadow 0.15s, transform 0.2s var(--ease);
+}
+.jump-fabs:not(.can-top) .fab-top, .jump-fabs:not(.can-bottom) .fab-bottom {
+    opacity: 0; transform: scale(0.8); pointer-events: none;
+}
+[data-theme="dark"] .fab { background: var(--surface-2); }
+.fab:hover { opacity: 1; box-shadow: var(--shadow-3); color: var(--text); }
+.fab .i { width: 20px; height: 20px; }
+
+/* A discarded tab keeps its last frame on screen; nothing to show for it. */
+body.tab-discarded .vl-edge { visibility: hidden; }

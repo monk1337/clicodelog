@@ -455,6 +455,19 @@ def path_project_map(source_id: str) -> dict:
                 (source_id,))}
 
 
+def session_info(source_id: str, project_id: str, session_id: str) -> dict | None:
+    """The listing row for one session: what the conversation header shows.
+
+    Sent with the conversation so the header is right even when the session
+    is not in the sidebar's loaded page — a focus tab, a bookmark, a search hit
+    in a project with 10,000 sessions.
+    """
+    r = connect().execute(
+        f"SELECT {LIST_COLUMNS} FROM sessions WHERE source=? AND session_id=? AND project_id=? "
+        "LIMIT 1", (source_id, session_id, project_id)).fetchone()
+    return _row_to_listing(r) if r else None
+
+
 def summaries_for(source_id: str, keys: list) -> dict:
     """Summary/cwd for a specific set of (project_id, session_id) pairs."""
     if not keys:

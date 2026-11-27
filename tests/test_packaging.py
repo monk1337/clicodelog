@@ -67,3 +67,18 @@ def test_every_referenced_static_file_is_packaged(wheel):
         if not any(n.endswith(f"clicodelog/static/{ref}") for n in names)
     ]
     assert not missing, f"templates reference files absent from the wheel: {missing}"
+
+
+def test_every_bundled_file_is_packaged(wheel):
+    """Pages load bundles assembled from these files at request time; a file
+    missing from the wheel would make every page 500 on a pip install."""
+    from clicodelog.assets import BUNDLES
+
+    names = set(zipfile.ZipFile(wheel).namelist())
+    missing = [
+        f for files in BUNDLES.values() for f in files
+        if not any(n.endswith(f"clicodelog/static/{f}") for n in names)
+    ]
+    assert not missing, f"bundled files absent from the wheel: {missing}"
+    for partial in ("_icons.html", "_conversation.html", "_dialogs.html"):
+        assert any(n.endswith(f"templates/{partial}") for n in names), partial

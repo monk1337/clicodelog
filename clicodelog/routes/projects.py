@@ -14,12 +14,15 @@ from fastapi.responses import JSONResponse
 
 from .. import sync as _sync
 from ..conversation import get_conversation
+from ..logging_setup import get_logger
 from ..metadata import get_project_meta_key, load_project_meta, update_project_meta
+from ..metastore import session_info
 from ..projects import get_projects
 from ..sessions import get_sessions, get_subagent_sessions
 from ..utils import is_safe_id
 
 router = APIRouter()
+log = get_logger(__name__)
 
 MAX_PAGE = 2000
 
@@ -82,6 +85,11 @@ def api_conversation(project_id: str, session_id: str,
         # success from failure by status alone.
         status = 404 if conv["error"] in ("Session not found", "Unknown source") else 400
         return JSONResponse(conv, status_code=status)
+    try:
+        conv["info"] = session_info(_resolve_source(source), project_id, session_id)
+    except Exception:
+        log.exception("Could not read session info for %s", session_id)
+        conv["info"] = None
     return conv
 
 

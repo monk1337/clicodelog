@@ -44,6 +44,11 @@ def main():
         action="store_true",
         help="Run in debug mode",
     )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Don't open a browser tab on start",
+    )
 
     args = parser.parse_args()
 
@@ -56,6 +61,7 @@ def main():
         skip_sync=args.no_sync,
         debug=args.debug,
         folder=args.folder,
+        open_browser=not args.no_browser,
     )
 
 

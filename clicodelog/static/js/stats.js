@@ -4,12 +4,18 @@
 
 var statsGroup = 'day';
 
-function toggleStats() {
+function toggleStats(force) {
     var modal = document.getElementById('stats-modal');
     if (!modal) return;
-    var active = modal.classList.toggle('active');
-    if (active) loadStats();
+    var active = typeof force === 'boolean' ? force : !modal.classList.contains('active');
+    modal.classList.toggle('active', active);
+    if (active) { closeMenus(); loadStats(); }
 }
+
+(function wireStatsScrim() {
+    var modal = document.getElementById('stats-modal');
+    if (modal) modal.addEventListener('mousedown', function(e) { if (e.target === modal) toggleStats(false); });
+})();
 
 async function loadStats() {
     var body = document.getElementById('stats-body');
@@ -29,6 +35,7 @@ function setStatsGroup(g) {
     statsGroup = g;
     document.querySelectorAll('.stats-tab').forEach(function(b) {
         b.classList.toggle('active', b.dataset.group === g);
+        b.setAttribute('aria-selected', b.dataset.group === g ? 'true' : 'false');
     });
     loadStats();
 }
@@ -146,14 +153,14 @@ function renderIndexStatus(s) {
         gb.toFixed(2) + ' GB (' + freeMb.toFixed(0) + ' MB free). '));
 
     var btn = document.createElement('button');
-    btn.className = 'retry-btn';
+    btn.className = 'btn btn-tonal sm';
     btn.textContent = s.fits ? 'Build index' : 'Build anyway';
     btn.onclick = function() { buildSearchIndex(!s.fits); };
     el.appendChild(btn);
 
     if (!s.fits) {
         var lite = document.createElement('button');
-        lite.className = 'retry-btn';
+        lite.className = 'btn btn-text sm';
         lite.textContent = 'Build without tool output (smaller)';
         lite.onclick = function() { buildSearchIndex(true, 0); };
         el.appendChild(lite);

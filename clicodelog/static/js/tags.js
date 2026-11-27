@@ -1,4 +1,5 @@
-var TAG_COLORS = ['#e53e3e','#dd6b20','#d69e2e','#38a169','#319795','#3182ce','#5a67d8','#805ad5','#d53f8c','#718096'];
+// Project tags: a stable colour per tag, and the filter chips above the list.
+var TAG_COLORS = ['#d93025', '#e8710a', '#f9ab00', '#188038', '#12b5cb', '#1a73e8', '#7b61ff', '#a142f4', '#e52592', '#5f6368'];
 
 function tagColor(tag) {
     var hash = 0;
@@ -7,26 +8,24 @@ function tagColor(tag) {
 }
 
 async function loadTagFilters() {
+    var bar = document.getElementById('tag-filter-bar');
+    if (!bar) return;
     try {
-        const tags = await fetch('/api/tags?source=' + currentSource).then(r => r.json());
-        const bar = document.getElementById('tag-filter-bar');
-        if (tags.length === 0) {
-            bar.classList.remove('visible');
-            bar.textContent = '';
+        var tags = await fetch('/api/tags?source=' + encodeURIComponent(currentSource)).then(function(r) { return r.json(); });
+        bar.textContent = '';
+        if (!tags.length) {
+            bar.hidden = true;
             activeTagFilter = null;
             return;
         }
-        bar.classList.add('visible');
-        bar.textContent = '';
-        const label = document.createElement('span');
-        label.className = 'tag-filter-label';
-        label.textContent = 'Tags:';
-        bar.appendChild(label);
+        bar.hidden = false;
         tags.forEach(function(t) {
-            const chip = document.createElement('span');
-            chip.className = 'tag-filter-chip' + (activeTagFilter === t ? ' active' : '');
-            chip.style.background = tagColor(t);
-            chip.textContent = t;
+            var chip = document.createElement('button');
+            chip.className = 'chip tag-filter-chip' + (activeTagFilter === t ? ' active' : '');
+            chip.style.setProperty('--tag', tagColor(t));
+            var dot = document.createElement('span');
+            dot.className = 'tag-dot';
+            chip.append(dot, document.createTextNode(t));
             chip.onclick = function() { filterByTag(t); };
             bar.appendChild(chip);
         });
@@ -37,6 +36,6 @@ async function loadTagFilters() {
 
 function filterByTag(tag) {
     activeTagFilter = activeTagFilter === tag ? null : tag;
-    renderProjects(projects);
+    renderProjects(filteredProjects());
     loadTagFilters();
 }

@@ -1,63 +1,97 @@
-.search-box {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
-}
-.search-box input {
-    width: 100%;
-    padding: 8px 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 13px;
-}
-.search-box input:focus { outline: none; border-color: var(--accent-blue); }
+/* Project and session lists. */
 
-.list-item {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
-    cursor: pointer;
-    transition: background 0.15s;
-    position: relative;
-}
-.list-item:hover { background: var(--bg-secondary); }
-.list-item.active { background: var(--bg-tertiary); border-left: 3px solid var(--accent-blue); }
-
+.list-item { position: relative; cursor: pointer; outline-offset: -2px; }
 .list-item-title {
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 14px; font-weight: 500; line-height: 20px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.list-item-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.list-item-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px;
+    margin-top: 2px;
+    font-size: 12px; line-height: 18px; color: var(--text-3);
+}
 
-.subagent-item {
-    padding-left: 28px;
-    background: var(--bg-primary);
-    border-left: 2px solid var(--accent-purple);
+/* Projects: navigation-drawer rows. */
+.project-item {
+    display: flex; align-items: center; gap: 10px;
+    margin: 1px 4px; padding: 8px 6px 8px 8px;
+    border-radius: var(--r-l);
+    transition: background 0.12s;
 }
-.subagent-item:hover { background: var(--bg-secondary); }
-.subagent-arrow { color: var(--accent-purple); font-family: var(--font-mono); }
+.project-item:hover { background: var(--hover); }
+.project-item.active { background: var(--active); color: var(--on-active); }
+.project-item.active .list-item-meta { color: inherit; opacity: 0.78; }
+.item-icon {
+    display: grid; place-items: center; flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 12px;
+    color: var(--text-2);
+}
+.project-item.active .item-icon { color: var(--on-active); }
+.item-body { flex: 1; min-width: 0; }
+.item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.edit-btn { opacity: 0; transition: opacity 0.12s; }
+.project-item:hover .edit-btn, .edit-btn:focus-visible { opacity: 1; }
+.project-item.active .edit-btn { color: var(--on-active); }
+
+/* Sessions */
+.sessions-pane .pane-body { padding: 0 0 8px; }
+.session-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 12px 10px 16px; flex-shrink: 0; }
+
+.session-item {
+    margin: 0 8px 2px; padding: 10px 12px;
+    border-radius: var(--r-m);
+    transition: background 0.12s;
+}
+.session-item:hover { background: var(--hover); }
+.session-item.active { background: var(--active); color: var(--on-active); }
+.session-item.active .list-item-meta, .session-item.active .item-time { color: inherit; opacity: 0.8; }
+.item-top { display: flex; align-items: flex-start; gap: 12px; }
+.session-item .list-item-title {
+    flex: 1; min-width: 0;
+    white-space: normal; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.item-time { flex-shrink: 0; font-size: 12px; line-height: 20px; color: var(--text-3); white-space: nowrap; }
+.meta-bit { display: inline-flex; align-items: center; gap: 4px; }
+.meta-bit .i { width: 14px; height: 14px; }
 
 .subagent-badge {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 1px 5px;
-    border-radius: 3px;
-    background: rgba(163, 113, 247, 0.12);
-    color: var(--accent-purple);
-    border: 1px solid rgba(163, 113, 247, 0.3);
-    cursor: pointer;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 8px;
+    border: 1px solid var(--line-strong); border-radius: var(--r-full);
+    background: transparent; color: var(--text-2);
+    font: 500 11.5px var(--font-ui);
 }
-.subagent-badge:hover { background: rgba(163, 113, 247, 0.25); }
+.subagent-badge .i { width: 13px; height: 13px; }
+.subagent-badge:hover { background: var(--hover); }
+.subagent-badge.open { background: var(--primary-soft); border-color: transparent; color: var(--on-primary-soft); }
+.subagent-list { margin: 0 8px 6px 22px; padding-left: 4px; border-left: 2px solid var(--line); }
+.subagent-list .session-item { margin: 0 0 2px 4px; padding: 8px 10px; }
+.subagent-list .loading, .subagent-list .empty-state { padding: 12px; min-height: 0; }
+.subagent-icon { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; color: var(--text-3); }
 
-[data-theme="light"] .search-box input { background: var(--bg-secondary); }
-[data-theme="light"] .search-box input:focus {
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+.sessions-footer {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px; font-size: 12px; color: var(--text-3);
 }
-[data-theme="light"] .list-item:hover { background: var(--bg-tertiary); }
-[data-theme="light"] .list-item.active { background: #dbeafe; border-left: 3px solid var(--accent-blue); }
+
+.empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    min-height: 160px; padding: 40px 24px;
+    text-align: center; color: var(--text-3);
+}
+.empty-state-icon {
+    display: grid; place-items: center;
+    width: 64px; height: 64px; margin-bottom: 8px; border-radius: 50%;
+    background: var(--surface-dim); color: var(--text-2);
+}
+.empty-state-icon .i { width: 28px; height: 28px; }
+.empty-state h3 { font-size: 20px; font-weight: 400; color: var(--text); }
+.empty-state p { max-width: 380px; font-size: 14px; }
+.error-state p { color: var(--text-2); }
+
+.loading {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 40px 16px; color: var(--text-3); font-size: 14px;
+}
+.no-search-results { padding: 40px 20px; text-align: center; color: var(--text-3); font-size: 14px; }

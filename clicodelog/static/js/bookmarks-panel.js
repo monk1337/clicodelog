@@ -126,9 +126,9 @@ function buildBmToolbar(total, shown) {
 
     var row = document.createElement('div');
     row.className = 'bm-toolbar-row';
-    [['all', 'All'], ['user', 'User'], ['assistant', 'AI']].forEach(function(pair) {
+    [['all', 'All'], ['user', 'You'], ['assistant', 'Assistant']].forEach(function(pair) {
         var chip = document.createElement('button');
-        chip.className = 'bm-chip' + (bmRole === pair[0] ? ' active' : '');
+        chip.className = 'chip bm-chip' + (bmRole === pair[0] ? ' active' : '');
         chip.textContent = pair[1];
         chip.onclick = function() { bmRole = pair[0]; renderBookmarksPanel(); };
         row.appendChild(chip);
@@ -161,12 +161,14 @@ function buildBmItem(b, terms) {
     var item = document.createElement('div');
     item.className = 'bookmark-item';
     item.title = 'Open this message';
+    item.tabIndex = 0;
+    item.onkeydown = function(e) { if (e.key === 'Enter') { e.preventDefault(); gotoBookmark(b); } };
 
     var meta = document.createElement('div');
     meta.className = 'bookmark-meta';
     var role = document.createElement('span');
     role.className = 'bm-role bm-role-' + (b.role || 'other');
-    role.textContent = b.role === 'assistant' ? 'AI' : (b.role || '?');
+    role.textContent = b.role === 'assistant' ? 'Assistant' : (b.role === 'user' ? 'You' : (b.role || '?'));
     meta.appendChild(role);
     meta.appendChild(document.createTextNode(' ' + bmTimeLabel(b.timestamp)));
     item.appendChild(meta);
@@ -179,9 +181,10 @@ function buildBmItem(b, terms) {
     item.onclick = function() { gotoBookmark(b); };
 
     var del = document.createElement('button');
-    del.className = 'bookmark-del';
-    del.textContent = '✕';
+    del.className = 'icon-btn sm bookmark-del';
+    del.appendChild(icon('close'));
     del.title = 'Remove bookmark';
+    del.setAttribute('aria-label', 'Remove bookmark');
     del.onclick = function(e) {
         e.stopPropagation();
         fetch('/api/bookmarks/' + encodeURIComponent(b.id), { method: 'DELETE' })
@@ -192,13 +195,14 @@ function buildBmItem(b, terms) {
     return item;
 }
 
-function buildBmGroupHeader(cls, label, sub, count, key, open) {
+function buildBmGroupHeader(cls, label, sub, count, key, open, iconName) {
     var h = document.createElement('div');
-    h.className = cls;
-    var caret = document.createElement('span');
-    caret.className = 'bm-caret';
-    caret.textContent = open ? '▾' : '▸';
-    h.appendChild(caret);
+    h.className = cls + (open ? ' open' : '');
+    h.tabIndex = 0;
+    h.setAttribute('role', 'button');
+    h.setAttribute('aria-expanded', open ? 'true' : 'false');
+    h.appendChild(icon('right', 'bm-caret'));
+    if (iconName) h.appendChild(icon(iconName, 'bm-group-icon'));
 
     var text = document.createElement('span');
     text.className = 'bm-group-label';
@@ -216,6 +220,7 @@ function buildBmGroupHeader(cls, label, sub, count, key, open) {
         saveBmCollapsed();
         renderBookmarksPanel();
     };
+    h.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h.onclick(); } };
     return h;
 }
 
@@ -237,7 +242,7 @@ function renderBookmarksPanel(keepFocus) {
     if (!allBookmarks.length) {
         var empty = document.createElement('div');
         empty.className = 'bookmarks-empty';
-        empty.textContent = 'No bookmarks yet. Click ☆ on any message to pin it.';
+        empty.textContent = 'No bookmarks yet. Use the star on any message to keep it here.';
         list.appendChild(empty);
         return;
     }
@@ -257,8 +262,8 @@ function renderBookmarksPanel(keepFocus) {
         var hereBox = document.createElement('div');
         hereBox.className = 'bm-project bm-here';
         var hereOpen = searching || !bmIsCollapsed('here', false);
-        hereBox.appendChild(buildBmGroupHeader('bm-project-header', '📌 This conversation',
-            '', here.length, 'here', hereOpen));
+        hereBox.appendChild(buildBmGroupHeader('bm-project-header', 'This conversation',
+            '', here.length, 'here', hereOpen, 'star-fill'));
         if (hereOpen) {
             here.slice().sort(function(a, b) { return (a.timestamp || '').localeCompare(b.timestamp || ''); })
                 .forEach(function(b) { hereBox.appendChild(buildBmItem(b, terms)); });
@@ -272,8 +277,8 @@ function renderBookmarksPanel(keepFocus) {
         // Searching unfolds whatever matches, so results are never hidden.
         var isCurrent = p.source === currentSource && p.key === currentSource + '|' + currentProjectId;
         var pOpen = searching || !bmIsCollapsed(p.key, !isCurrent);
-        box.appendChild(buildBmGroupHeader('bm-project-header', '📁 ' + shortProjectName(p.name),
-            p.name, p.count, p.key, pOpen));
+        box.appendChild(buildBmGroupHeader('bm-project-header', shortProjectName(p.name),
+            p.name, p.count, p.key, pOpen, 'folder'));
         if (pOpen) {
             p.sessionList.forEach(function(s) {
                 var sBox = document.createElement('div');

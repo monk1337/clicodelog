@@ -1,0 +1,81 @@
+<!-- The conversation reader, shared by the main page and the focus view. The
+     scroller holds the header (which scrolls away), the toolbar (which sticks)
+     and the virtual message list. -->
+<div class="conv-scroller" id="conv-scroller">
+    <header class="conv-head" id="conv-head"></header>
+
+    <div class="conv-toolbar" id="conv-filter-bar" hidden>
+        <div class="tb-row">
+            <div class="chip-group" role="group" aria-label="Show only">
+                <button class="chip role-btn" data-filter="user" onclick="toggleRoleFilter('user')" aria-pressed="false" title="Only your messages"><svg class="i chip-check"><use href="#i-check"/></svg>You</button>
+                <button class="chip role-btn" data-filter="assistant" onclick="toggleRoleFilter('assistant')" aria-pressed="false" title="Only the assistant's messages"><svg class="i chip-check"><use href="#i-check"/></svg>Assistant</button>
+                <button class="chip role-btn" data-filter="tools" onclick="toggleRoleFilter('tools')" aria-pressed="false" title="Only messages with tool calls"><svg class="i chip-check"><use href="#i-check"/></svg>Tools</button>
+                <label class="chip unique-toggle" title="Show each distinct message once, with a ×N count of how often it repeats">
+                    <input type="checkbox" onchange="toggleUniqueOnly(this.checked)"><svg class="i chip-check"><use href="#i-check"/></svg>Unique only
+                </label>
+            </div>
+
+            <div class="find" role="search">
+                <svg class="i"><use href="#i-search"/></svg>
+                <input type="text" id="conv-search-input" placeholder="Find in conversation" autocomplete="off" spellcheck="false"
+                       oninput="onFindInput()" onkeydown="onFindKey(event)" aria-label="Find in this conversation">
+                <span class="find-count" id="conv-search-status" aria-live="polite"></span>
+                <button class="icon-btn sm" onclick="convSearchPrev()" title="Previous match (Shift+Enter)" aria-label="Previous match"><svg class="i"><use href="#i-up"/></svg></button>
+                <button class="icon-btn sm" onclick="convSearchNext()" title="Next match (Enter)" aria-label="Next match"><svg class="i"><use href="#i-down"/></svg></button>
+                <button class="icon-btn sm" onclick="clearConvSearch()" title="Clear (Esc)" aria-label="Clear find"><svg class="i"><use href="#i-close"/></svg></button>
+            </div>
+
+            <span class="grow"></span>
+
+            <div class="menu-wrap">
+                <button class="btn btn-text" id="view-menu-btn" onclick="toggleMenu('view-menu')" aria-haspopup="menu" aria-expanded="false" title="View options">
+                    <svg class="i"><use href="#i-tune"/></svg><span class="label">View</span>
+                </button>
+                <div class="menu menu-right" id="view-menu" role="menu">
+                    <button class="menu-item switch-item" id="thinking-toggle-btn" role="menuitemcheckbox" aria-checked="false" onclick="toggleAllThinking()">
+                        <svg class="i"><use href="#i-bulb"/></svg><span class="label">Expand thinking</span><span class="switch" aria-hidden="true"></span>
+                    </button>
+                    <button class="menu-item switch-item" id="tools-toggle-btn" role="menuitemcheckbox" aria-checked="false" onclick="toggleToolBoxes()">
+                        <svg class="i"><use href="#i-tool"/></svg><span class="label">Show tool calls</span><span class="switch" aria-hidden="true"></span>
+                    </button>
+                    <button class="menu-item" id="msg-order-btn" role="menuitem" onclick="toggleMsgOrder()" title="Switch between newest and oldest first">
+                        <svg class="i"><use href="#i-sort"/></svg><span class="label">Newest first</span>
+                    </button>
+                    <div class="menu-sep" role="separator"></div>
+                    <div class="menu-section">Date range</div>
+                    <div class="menu-dates">
+                        <input type="date" id="date-from" class="date-input" aria-label="From">
+                        <span>–</span>
+                        <input type="date" id="date-to" class="date-input" aria-label="To">
+                    </div>
+                    <div class="menu-actions">
+                        <button class="btn btn-text sm" onclick="clearDateFilter()">Clear</button>
+                        <button class="btn btn-tonal sm" id="apply-filter-btn" onclick="applyDateFilter()">Apply</button>
+                    </div>
+                    <div class="menu-sep" role="separator"></div>
+                    <button class="menu-item" id="load-all-btn" role="menuitem" onclick="loadAllMessages()" title="Fetch every message so find and filters cover the whole session">
+                        <svg class="i"><use href="#i-layers"/></svg><span class="label">Load all messages</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="tb-status">
+            <span id="conv-filter-status"></span>
+            <span class="unique-status" id="unique-status"></span>
+            <span class="busy" id="conv-filter-loading" hidden><span class="mini-spinner"></span><span class="busy-text"></span></span>
+        </div>
+    </div>
+
+    <div class="jump-fabs" id="jump-fabs" hidden>
+        <button class="fab fab-top" onclick="scrollConvToTop()" title="Jump to top" aria-label="Jump to top"><svg class="i"><use href="#i-to-top"/></svg></button>
+        <button class="fab fab-bottom" onclick="scrollConvToBottom()" title="Jump to bottom" aria-label="Jump to bottom"><svg class="i"><use href="#i-to-bottom"/></svg></button>
+    </div>
+
+    <div id="conversation-content" class="conv-body">
+        <div class="empty-state">
+            <div class="empty-state-icon"><svg class="i"><use href="#i-chat"/></svg></div>
+            <h3>Your agent history</h3>
+            <p>Pick a session to read it here. Press ⌘K to search every conversation.</p>
+        </div>
+    </div>
+</div>

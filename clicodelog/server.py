@@ -12,6 +12,7 @@ import uvicorn
 
 from .config import DATA_DIR, SOURCES, SYNC_INTERVAL
 from .logging_setup import get_logger, setup_logging
+from . import reaper
 from .sync import background_sync, initial_sync
 
 log = get_logger(__name__)
@@ -132,6 +133,7 @@ def run_server(
     skip_sync: bool = False,
     debug: bool = False,
     folder: str | None = None,
+    open_browser: bool = True,
 ) -> None:
     from .app import app
     from . import sync as _sync
@@ -172,6 +174,7 @@ def run_server(
         print(f"\n  Syncing in the background; refreshes every {SYNC_INTERVAL // 3600}h")
     threading.Thread(target=initial_sync, args=(skip_sync,), daemon=True).start()
     threading.Thread(target=background_sync, daemon=True).start()
+    reaper.start()
 
     url = f"http://{host}:{port}"
     print(f"\n  Ready at {url}")
@@ -188,5 +191,6 @@ def run_server(
         except Exception:
             pass
 
-    threading.Thread(target=_open_browser, daemon=True).start()
+    if open_browser:
+        threading.Thread(target=_open_browser, daemon=True).start()
     uvicorn.run(app, host=host, port=port, log_level="info" if debug else "warning")

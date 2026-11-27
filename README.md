@@ -63,6 +63,43 @@ All in one local interface. Nothing leaves your machine.
 
 ## ✨ What's New
 
+### 🎨 A redesigned, much lighter portal
+
+A clean Material-style interface, rebuilt so the browser only ever holds what you are looking at:
+
+<table>
+<tr>
+<td>🧠</td>
+<td><b>Huge sessions stay light</b><br>Only the messages on screen are rendered. "Load all" on a 22,751-message session used to build <b>222,310 DOM nodes</b> in 11 seconds; it now loads in <b>0.6s</b> with about <b>2,800</b> nodes, and scrolling stays smooth the whole way through.</td>
+</tr>
+<tr>
+<td>💤</td>
+<td><b>Idle tabs give their memory back</b><br>Like a browser's memory saver: leave a tab unused for 5 minutes and it drops everything it loaded (29 MB → 3.4 MB in our test), keeping only where you were. Come back and it reloads just that spot — same message, same scroll position. The server does the same with its caches.</td>
+</tr>
+<tr>
+<td>🚀</td>
+<td><b>Faster to open</b><br>40 requests per page load became 4, with no external font downloads. Assets are cached permanently, so a repeat visit fetches nothing but your data.</td>
+</tr>
+<tr>
+<td>🔍</td>
+<td><b>Search that keeps up with typing</b><br>Common words that took over a second in full-text search now answer in about <b>70 ms</b>. A Spotlight-style ⌘K dialog with keyboard navigation opens a result right at the matching message.</td>
+</tr>
+<tr>
+<td>🎯</td>
+<td><b>Find in conversation, properly</b><br>⌘F or <kbd>/</kbd> searches every loaded message (not just what happens to be rendered), highlights the words in place, and steps through matches with Enter.</td>
+</tr>
+<tr>
+<td>🧹</td>
+<td><b>Filters that compose</b><br>You / Assistant / Tools / Unique only / date range all work together, and changing one never throws you back to the top. Your view preferences are remembered.</td>
+</tr>
+<tr>
+<td>🌗</td>
+<td><b>Light and dark that follow your system</b><br>A consistent icon set instead of emoji, a sticky toolbar, contextual jump-to-top/bottom buttons, and a project drawer on narrow windows.</td>
+</tr>
+</table>
+
+### Earlier in this release
+
 A big round of performance, search and correctness work. Highlights:
 
 <table>
@@ -299,10 +336,16 @@ data/
 
 | Control | Action |
 |---------|--------|
+| <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd> | Search every conversation |
+| <kbd>⌘F</kbd> or <kbd>/</kbd> | Find in the open conversation (Enter / Shift+Enter to step) |
+| <kbd>Esc</kbd> | Close whatever is open |
+| You · Assistant · Tools · Unique only | Filter the conversation; they combine |
+| View menu | Thinking, tool calls, newest/oldest first, date range, load all |
+| Resume · Open in editor | Copy the command to continue the session |
+| Export | Text, Markdown, or the raw log |
+| ⭐ | Bookmarks, grouped by project and conversation |
 | Source dropdown | Switch between supported tools |
-| 📥 Export | Download current session as .txt |
-| 🔄 Sync | Manually refresh logs from source |
-| ☀️ / 🌙 Theme | Toggle light/dark mode |
+| Sync · Theme | Refresh logs now · light/dark (follows the system until you choose) |
 
 ---
 
@@ -320,6 +363,8 @@ data/
 clicodelog/
 ├── cli.py              # Entry point
 ├── app.py              # FastAPI app, routes, cache policy
+├── assets.py           # Content-hashed CSS/JS bundles
+├── reaper.py           # Gives memory back after 5 idle minutes
 ├── config.py           # SOURCES, paths, constants
 ├── sync.py             # Additive clone-backup of each source
 ├── scan.py             # One-pass session metadata extraction
@@ -330,8 +375,8 @@ clicodelog/
 ├── storage.py          # Atomic writes, disk checks
 ├── parsers/            # claude.py, codex.py, gemini.py
 ├── routes/             # projects, search, export, sync, sources, stats
-├── static/             # Vanilla JS + CSS (no build step)
-└── templates/          # index.html, view.html
+├── static/             # Vanilla JS + CSS (no build step; bundled at request time)
+└── templates/          # index.html, view.html and shared partials
 
 ~/.clicodelog/          # Created at runtime, never in the repo
 ├── data/               # Your synced logs (the durable backup)

@@ -2,15 +2,12 @@
 //
 // Long agent sessions are full of the same prompt pasted again and again. With
 // this on, each distinct message is shown once, with a "×N" badge saying how
-// many times it was sent; the repeats are hidden.
+// many times it was sent.
 //
-// It works on the rendered DOM rather than the message array on purpose. The
-// lazy loader, the two-way paging and the role filter all index into
-// getActiveMessages(); removing entries from it would shift every index they
-// depend on. Each message element instead carries a fingerprint
-// (data-dupkey, set in buildMessageEl), and this pass hides later copies with a
-// CSS class. It therefore composes with the User / AI / Tools filters and keeps
-// working as pages arrive at either end.
+// The collapsing happens in the display model (buildView in conv-data.js), so
+// hidden repeats are never rendered at all and it composes with the role,
+// tool and date filters. The copy kept is the first in display order: with
+// newest-first, the most recent time the message was sent.
 
 var uniqueOnly = false;
 var UNIQUE_PREF_KEY = 'clicodelog-unique-only';
@@ -18,8 +15,8 @@ var UNIQUE_PREF_KEY = 'clicodelog-unique-only';
 try { uniqueOnly = localStorage.getItem(UNIQUE_PREF_KEY) === '1'; } catch (e) { /* private mode */ }
 
 // FNV-1a, 32-bit. Messages can be 200k characters; a fingerprint keeps the
-// attribute small. The role and length are folded in, so a collision would
-// also need an identical role and length.
+// key small. The role and length are folded in, so a collision would also
+// need an identical role and length.
 function fnv1a(str) {
     var h = 0x811c9dc5;
     for (var i = 0; i < str.length; i++) {
@@ -56,75 +53,15 @@ function toggleUniqueOnly(on) {
     uniqueOnly = !!on;
     try { localStorage.setItem(UNIQUE_PREF_KEY, uniqueOnly ? '1' : '0'); } catch (e) { /* ignore */ }
     syncUniqueToggles();
-    applyUniqueFilter();
+    if (typeof refreshView === 'function') refreshView();
 }
 
 function syncUniqueToggles() {
     document.querySelectorAll('.unique-toggle input').forEach(function(cb) {
         cb.checked = uniqueOnly;
+        var chip = cb.closest('.chip');
+        if (chip) chip.classList.toggle('active', uniqueOnly);
     });
-}
-
-function formatShortTime(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    if (isNaN(d)) return '';
-    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function applyUniqueFilter() {
-    var mc = document.getElementById('messages-container');
-    var status = document.getElementById('unique-status');
-    if (!mc) { if (status) status.textContent = ''; return; }
-
-    mc.classList.toggle('unique-only', uniqueOnly);
-    mc.querySelectorAll('.dup-badge').forEach(function(b) { b.remove(); });
-    var nodes = mc.querySelectorAll('.message');
-
-    if (!uniqueOnly) {
-        nodes.forEach(function(el) { el.classList.remove('dup-repeat', 'dup-revealed'); });
-        if (status) status.textContent = '';
-        return;
-    }
-
-    // The first copy in display order is the one kept: with newest-first that
-    // is the most recent time the message was sent.
-    var groups = {};
-    var hidden = 0;
-    nodes.forEach(function(el) {
-        var k = el.dataset.dupkey;
-        el.classList.remove('dup-repeat');
-        if (!k) return;
-        var g = groups[k];
-        if (!g) { groups[k] = { el: el, count: 1, times: [] }; return; }
-        g.count++;
-        if (g.times.length < 12) g.times.push(el.dataset.ts);
-        el.classList.add('dup-repeat');
-        hidden++;
-    });
-
-    Object.keys(groups).forEach(function(k) {
-        var g = groups[k];
-        if (g.count < 2) return;
-        var header = g.el.querySelector('.message-header') || g.el;
-        var badge = document.createElement('span');
-        badge.className = 'dup-badge';
-        badge.textContent = '×' + g.count;
-        var when = g.times.map(formatShortTime).filter(Boolean);
-        // ' · ' between entries: the times themselves contain a comma.
-        badge.title = 'Sent ' + g.count + ' times' +
-            (when.length ? '. Other copies: ' + when.join('  ·  ') +
-                (g.count - 1 > when.length ? '  ·  …' : '') : '');
-        header.appendChild(badge);
-    });
-
-    if (status) {
-        var partial = typeof hasMoreOnServer === 'function' && hasMoreOnServer();
-        status.textContent = hidden
-            ? 'Hiding ' + hidden.toLocaleString() + ' repeat' + (hidden === 1 ? '' : 's') +
-              (partial ? ' (loaded messages — Load All to cover the whole session)' : '')
-            : 'No repeats' + (partial ? ' in loaded messages' : '');
-    }
 }
 
 document.addEventListener('DOMContentLoaded', syncUniqueToggles);

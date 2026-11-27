@@ -1,110 +1,90 @@
-/* ---------------------------------------------------------------------------
-   "Unique only" — collapse verbatim repeats
-   --------------------------------------------------------------------------- */
-.unique-toggle {
-    display: inline-flex; align-items: center; gap: 5px;
-    margin-left: 6px; padding: 4px 9px;
-    border: 1px solid var(--border-color); border-radius: 6px;
-    font-size: 12px; color: var(--text-secondary);
-    cursor: pointer; user-select: none; white-space: nowrap;
-}
-.unique-toggle:hover { border-color: var(--accent-blue); color: var(--text-primary); }
-.unique-toggle input { margin: 0; accent-color: var(--accent-blue); cursor: pointer; }
-.unique-toggle:has(input:checked) {
-    border-color: var(--accent-blue); color: var(--text-primary);
-    background: var(--user-bg);
-}
-.unique-status {
-    font-size: 11px; color: var(--text-muted); margin-left: 6px;
-    font-variant-numeric: tabular-nums;
-}
+/* The bookmarks sheet: project folders, conversations, search. */
 
-/* !important: the role filter re-shows messages with display:block at a higher
-   specificity, and a hidden repeat must stay hidden under any role filter. */
-.messages.unique-only .message.dup-repeat:not(.dup-revealed) { display: none !important; }
-
-.dup-badge {
-    display: inline-block; margin-left: 8px; padding: 1px 7px;
-    border-radius: 10px; font-size: 11px; font-weight: 600;
-    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    color: var(--accent-blue); background: var(--user-bg);
-    border: 1px solid var(--accent-blue);
-    cursor: help;
+.sheet {
+    position: fixed; top: 8px; right: 8px; bottom: 8px; z-index: 90;
+    display: flex; flex-direction: column;
+    width: 440px; max-width: calc(100vw - 16px);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-3);
+    transform: translateX(calc(100% + 16px));
+    visibility: hidden;
+    transition: transform 0.25s var(--ease), visibility 0s linear 0.25s;
 }
-
-/* ---------------------------------------------------------------------------
-   Bookmarks panel — project folders, conversations, search
-   --------------------------------------------------------------------------- */
-.bookmarks-panel { width: 440px; right: -460px; }
-.bookmarks-panel.open { right: 0; }
-.bookmarks-list { padding: 0 8px 12px; }
+[data-theme="dark"] .sheet { background: var(--surface-dim); }
+.sheet.open { transform: none; visibility: visible; transition: transform 0.25s var(--ease); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 4px 24px; }
+.sheet-head h3 { font-size: 22px; font-weight: 400; }
+.bookmarks-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 16px; overscroll-behavior: contain; }
 
 .bm-toolbar {
     position: sticky; top: 0; z-index: 2;
     display: flex; flex-direction: column; gap: 8px;
-    margin: 0 -8px 8px; padding: 10px 12px;
-    background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);
+    padding: 8px 4px 12px;
+    background: inherit;
 }
+.sheet .bm-toolbar { background: var(--surface); }
+[data-theme="dark"] .sheet .bm-toolbar { background: var(--surface-dim); }
 .bm-search {
-    width: 100%; box-sizing: border-box; padding: 8px 10px;
-    border: 1px solid var(--border-color); border-radius: 6px;
-    background: var(--bg-primary); color: var(--text-primary);
-    font: inherit; font-size: 13px;
+    height: 40px; padding: 0 16px;
+    border: 0; border-radius: var(--r-full);
+    background: var(--surface-2); color: var(--text);
+    font-size: 14px; outline: none;
 }
-.bm-search:focus { outline: none; border-color: var(--accent-blue); }
-.bm-toolbar-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.bm-chip {
-    padding: 3px 10px; border-radius: 12px; cursor: pointer;
-    border: 1px solid var(--border-color); background: transparent;
-    color: var(--text-secondary); font-size: 12px;
-}
-.bm-chip:hover { color: var(--text-primary); }
-.bm-chip.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
-.bm-count {
-    margin-left: auto; font-size: 11px; color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-}
-.bm-link {
-    background: none; border: none; padding: 0 2px; cursor: pointer;
-    color: var(--accent-blue); font-size: 11px;
-}
+.bm-search:focus { box-shadow: inset 0 0 0 2px var(--primary); }
+.bm-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.bm-chip { height: 28px; padding: 0 12px; border-radius: var(--r-full); font-size: 12.5px; }
+.bm-count { margin-left: auto; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bm-link { border: 0; background: none; padding: 2px 4px; color: var(--primary); font-size: 12px; font-weight: 500; }
 .bm-link:hover { text-decoration: underline; }
 
-.bm-project { margin-bottom: 6px; }
+.bm-project { margin-bottom: 4px; }
 .bm-project-header, .bm-session-header {
-    display: flex; align-items: center; gap: 6px;
-    cursor: pointer; user-select: none; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    border-radius: var(--r-s);
+    cursor: pointer; user-select: none;
 }
-.bm-project-header {
-    padding: 8px 8px; font-size: 13px; font-weight: 600; color: var(--text-primary);
-}
-.bm-project-header:hover, .bm-session-header:hover { background: var(--bg-tertiary); }
-.bm-here > .bm-project-header { color: var(--accent-amber); }
-.bm-session { margin-left: 14px; border-left: 1px solid var(--border-color); padding-left: 8px; }
-.bm-session-header {
-    padding: 5px 6px; font-size: 12px; color: var(--text-secondary);
-}
-.bm-caret { width: 10px; flex: 0 0 auto; color: var(--text-muted); font-size: 10px; }
+.bm-project-header { height: 40px; padding: 0 8px; font-size: 13.5px; font-weight: 600; }
+.bm-session-header { min-height: 32px; padding: 4px 8px; font-size: 13px; color: var(--text-2); }
+.bm-project-header:hover, .bm-session-header:hover { background: var(--hover); }
+.bm-caret { width: 16px; height: 16px; color: var(--text-3); transition: transform 0.15s var(--ease); }
+.open > .bm-caret { transform: rotate(90deg); }
+.bm-group-icon { width: 18px; height: 18px; color: var(--text-2); }
+.bm-here .bm-group-icon { color: var(--star); }
 .bm-group-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-group-count {
-    flex: 0 0 auto; min-width: 20px; padding: 0 6px; border-radius: 9px;
-    text-align: center; font-size: 11px; font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-secondary); background: var(--bg-tertiary);
+    padding: 0 8px; border-radius: var(--r-full);
+    background: var(--surface-dim); color: var(--text-2);
+    font-size: 11.5px; font-weight: 600; line-height: 20px; font-variant-numeric: tabular-nums;
 }
+[data-theme="dark"] .bm-group-count { background: var(--surface-2); }
+.bm-session { margin-left: 15px; padding-left: 8px; border-left: 1px solid var(--line); }
 
-.bm-project .bookmark-item, .bm-session .bookmark-item { margin: 4px 0 6px 4px; }
-.bookmark-preview {
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-    overflow: hidden; word-break: break-word;
+.bookmark-item {
+    position: relative;
+    margin: 4px 0 6px 4px; padding: 10px 40px 10px 12px;
+    border-radius: var(--r-m);
+    background: var(--surface-dim);
+    cursor: pointer;
+    transition: background 0.12s;
 }
-.bookmark-preview mark, .bm-group-label mark {
-    background: var(--accent-orange); color: var(--bg-primary);
-    border-radius: 2px; padding: 0 1px;
-}
+[data-theme="dark"] .bookmark-item { background: var(--surface-2); }
+.bookmark-item:hover { background: var(--surface-2); }
+[data-theme="dark"] .bookmark-item:hover { background: var(--surface-3); }
+.bookmark-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11.5px; color: var(--text-3); }
 .bm-role {
-    display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 3px;
-    font-weight: 700; color: var(--bg-primary); background: var(--text-muted);
+    padding: 0 7px; border-radius: var(--r-full);
+    background: var(--surface-3); color: var(--text-2);
+    font-size: 10.5px; font-weight: 600; line-height: 17px; letter-spacing: 0.02em;
 }
-.bm-role-user { background: var(--accent-blue); }
-.bm-role-assistant { background: var(--accent-purple); }
+.bm-role-user { background: var(--primary-soft); color: var(--on-primary-soft); }
+.bm-role-assistant { background: color-mix(in srgb, var(--assistant-b) 24%, transparent); color: var(--text); }
+.bookmark-preview {
+    font-size: 13.5px; line-height: 1.45; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bookmark-del { position: absolute; top: 6px; right: 6px; opacity: 0; }
+.bookmark-item:hover .bookmark-del, .bookmark-del:focus-visible { opacity: 1; }
+.bookmarks-empty { padding: 32px 16px; text-align: center; color: var(--text-3); font-size: 13.5px; }
+
+.unique-status:empty { display: none; }

@@ -1,44 +1,65 @@
+// Sync status and the manual Sync button. The status poll runs only while the
+// page is visible: a background tab polling every minute kept the server busy
+// for nobody, and stopped it from ever counting as idle.
+
+var SYNC_POLL_MS = 60000;
+var syncPollTimer = null;
+
 async function fetchSyncStatus() {
     try {
-        const data = await fetch('/api/status?source=' + currentSource).then(r => r.json());
+        var data = await fetch('/api/status?source=' + encodeURIComponent(currentSource)).then(function(r) { return r.json(); });
         updateSyncStatus(data.last_sync);
     } catch (e) {
-        document.getElementById('sync-status').textContent = 'Status unavailable';
+        var el = document.getElementById('sync-status');
+        if (el) el.textContent = 'Offline';
     }
 }
 
 function updateSyncStatus(lastSync) {
-    const el = document.getElementById('sync-status');
+    var el = document.getElementById('sync-status');
+    if (!el) return;
     if (lastSync) {
-        const d = new Date(lastSync);
-        el.textContent = 'Last sync: ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        var d = new Date(lastSync);
+        el.textContent = 'Synced ' + relativeTime(lastSync);
         el.title = 'Last sync: ' + d.toLocaleString();
     } else {
         el.textContent = 'Not synced';
+        el.title = '';
     }
 }
 
 async function manualSync() {
-    const btn = document.getElementById('sync-btn');
-    btn.classList.add('syncing');
-    btn.disabled = true;
-    document.getElementById('sync-status').textContent = 'Syncing...';
+    var btn = document.getElementById('sync-btn');
+    var status = document.getElementById('sync-status');
+    if (btn) { btn.classList.add('syncing'); btn.disabled = true; }
+    if (status) status.textContent = 'Syncing…';
     try {
-        const data = await fetch('/api/sync?source=' + currentSource, { method: 'POST' }).then(r => r.json());
+        var data = await fetch('/api/sync?source=' + encodeURIComponent(currentSource), { method: 'POST' })
+            .then(function(r) { return r.json(); });
         if (data.status === 'success') {
             updateSyncStatus(data.last_sync);
-            conversationCache = {};
+            cacheClear();
             if (typeof loadProjects === 'function') await loadProjects();
-        } else {
-            document.getElementById('sync-status').textContent = 'Sync failed';
+            toast('Sync complete');
+        } else if (status) {
+            status.textContent = 'Sync failed';
         }
     } catch (e) {
-        document.getElementById('sync-status').textContent = 'Sync error';
+        if (status) status.textContent = 'Sync error';
     } finally {
-        btn.classList.remove('syncing');
-        btn.disabled = false;
+        if (btn) { btn.classList.remove('syncing'); btn.disabled = false; }
     }
 }
 
-fetchSyncStatus();
-setInterval(fetchSyncStatus, 60000);
+function scheduleSyncPoll() {
+    clearInterval(syncPollTimer);
+    syncPollTimer = null;
+    if (!document.hidden) syncPollTimer = setInterval(fetchSyncStatus, SYNC_POLL_MS);
+}
+
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) fetchSyncStatus();
+    scheduleSyncPoll();
+});
+
+scheduleSyncPoll();

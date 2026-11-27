@@ -196,6 +196,9 @@ def background_sync():
                 sync_data(source_id=source_id, silent=True)
             except Exception:
                 log.exception("Background sync failed for %s", source_id)
+        # A sync re-reads changed files; let the reaper give that memory back.
+        from . import reaper
+        reaper.note_background_work()
 
 
 def initial_sync(skip: bool = False):

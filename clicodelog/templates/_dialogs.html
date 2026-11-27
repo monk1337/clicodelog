@@ -1,0 +1,43 @@
+<!-- Search (⌘K), usage, and the bookmarks sheet. The usage dialog is only
+     included on the main page. -->
+<div class="scrim" id="search-modal">
+    <div class="dialog search-dialog" role="dialog" aria-modal="true" aria-label="Search conversations">
+        <div class="search-field">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input type="text" id="global-search-input" placeholder="Search all conversations" autocomplete="off" spellcheck="false" aria-label="Search all conversations">
+            <kbd>Esc</kbd>
+        </div>
+        <div class="progress" id="search-progress" hidden></div>
+        <div class="search-results" id="search-results" role="listbox"></div>
+        <div class="search-foot">
+            <span class="search-index" id="index-status"></span>
+            <span class="search-keys"><kbd>↑</kbd><kbd>↓</kbd> move <kbd>↵</kbd> open</span>
+        </div>
+    </div>
+</div>
+
+{% if not focus %}
+<div class="scrim" id="stats-modal">
+    <div class="dialog stats-dialog" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+        <div class="dialog-head">
+            <h3 id="stats-title">Usage</h3>
+            <button class="icon-btn" onclick="toggleStats(false)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="segmented stats-tabs" role="tablist">
+            <button class="stats-tab active" role="tab" aria-selected="true" data-group="day" onclick="setStatsGroup('day')">By day</button>
+            <button class="stats-tab" role="tab" aria-selected="false" data-group="project" onclick="setStatsGroup('project')">By project</button>
+            <button class="stats-tab" role="tab" aria-selected="false" data-group="model" onclick="setStatsGroup('model')">By model</button>
+            <button class="stats-tab" role="tab" aria-selected="false" data-group="tool" onclick="setStatsGroup('tool')">Tools</button>
+        </div>
+        <div class="dialog-body" id="stats-body"></div>
+    </div>
+</div>
+{% endif %}
+
+<aside class="sheet bookmarks-panel" id="bookmarks-panel" aria-label="Bookmarks">
+    <div class="sheet-head">
+        <h3>Bookmarks</h3>
+        <button class="icon-btn" onclick="closeBookmarksPanel()" aria-label="Close bookmarks"><svg class="i"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="bookmarks-list" id="bookmarks-list"></div>
+</aside>
